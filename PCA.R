@@ -1,4 +1,5 @@
-setwd('/Users/matar/Dropbox/PCA_elecs/')
+#setwd('/Users/matar/Dropbox/PCA_elecs/')
+setwd('/home/knight/matar/PYTHON/ECOGpy/')
 library(psych)
 library(R.matlab)
 library(proxy)
@@ -9,8 +10,10 @@ library(cluster)
 #data = readMat('/Users/matar/Dropbox/PCA_elecs/PCAmtx_active.mat')
 #PCAmtx = t(data$PCAmtx)
 
-DATADIR = '/Users/matar/cluster/MATLAB/DATA/Avgusta/Subjs/'
-saveDir = '/Users/matar/Dropbox/PCA_elecs/plots/'
+#DATADIR = '/Users/matar/cluster/MATLAB/DATA/Avgusta/Subjs/'
+#saveDir = '/Users/matar/Dropbox/PCA_elecs/plots/'
+DATADIR = '/home/knight/matar/MATLAB/DATA/Avgusta/Subjs/'
+saveDir = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/'
 
 d = read.table('test2.subjects',sep = '_') #only run on my 4 subj
 df = data.frame()
@@ -63,5 +66,5 @@ for (i in 1:nrow(d) ) {
 
 }
 
-filename = paste(saveDir, 'groupidx_4subjs.csv',sep = "")
+filename = paste(saveDir, 'groupidx.csv',sep = "")
 write.table(df,file = filename, sep =",", row.names=FALSE, col.names = c('subj','task','active elec', 'group'))

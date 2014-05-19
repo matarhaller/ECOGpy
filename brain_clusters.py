@@ -10,7 +10,7 @@ import numpy as np
 import brewer2mpl
 import scipy.stats as stats
 
-def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/Users/matar/Documents/MATLAB/DATA/Avgusta/', groupidx = '/Users/matar/Dropbox/PCA_elecs/groupidx_activeclusters.csv'):
+def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/groupidx_activeclusters.csv'):
     """
     Plot mean traces of cluster with color coded brain. Only plots active clusters
     Taken from plot_cluster_brain.ipynb
@@ -52,7 +52,7 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     clusters = pd.DataFrame(clusters)
 
     #resp locked
-    filename = os.path.join(datadir, 'PCA', 'Shadeplots_thresh10', '_'.join([subj, task, 'cdata_resp.mat']))
+    filename = os.path.join(datadir, 'PCA', 'ShadePlots_thresh10', '_'.join([subj, task, 'cdata_resp.mat']))
     data = spio.loadmat(filename, struct_as_record = True)
     params = data['Params'].flatten()
     data = data['cdata_resp_all']
@@ -106,7 +106,7 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
 
     #single trials
     for i, fname in enumerate(singletrial_pngs):
-        arr = plt.imread(os.path.join(datadir, 'PCA','singletrials', fname))
+        arr = plt.imread(os.path.join(datadir, 'PCA','SingleTrials', fname))
         [x,y] = np.unravel_index(i,(n,n))
         span = int(np.ceil(25/n))
         ax4 = f.add_subplot(gs[2+x, y*span:(y+1)*span])
