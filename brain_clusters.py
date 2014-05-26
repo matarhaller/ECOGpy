@@ -9,6 +9,7 @@ import matplotlib as mpl
 import numpy as np
 import brewer2mpl
 import scipy.stats as stats
+import matplotlib
 
 def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/groupidx_activeclusters.csv'):
     """
@@ -52,7 +53,7 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     clusters = pd.DataFrame(clusters)
 
     #resp locked
-    filename = os.path.join(datadir, 'PCA', 'ShadePlots_thresh10', '_'.join([subj, task, 'cdata_resp.mat']))
+    filename = os.path.join(datadir, 'PCA', 'ShadePlots_hclust_thresh10', '_'.join([subj, task, 'cdata_resp.mat']))
     data = spio.loadmat(filename, struct_as_record = True)
     params = data['Params'].flatten()
     data = data['cdata_resp_all']
@@ -65,13 +66,9 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     cdict = dict(zip(c, [x.mean(axis = 0) for x in data[:,1]]))
     clusters_resp= pd.DataFrame(cdict)
 
-    #plot  - colors
-    ncolors = len(clusters.keys())
-    if ncolors<3:
-        ncolors = 3
-    bmap = brewer2mpl.get_map('Spectral', 'diverging', ncolors)  #max num of clusters
-    cmap = bmap.get_mpl_colormap()
-    colors = bmap.mpl_colors
+    #plot  - colors, create colormap
+    colors = ['#b22222','#228b22','#32cd32','#40e0d0','#00008b', '#ff7f50' ,'#c71585','#a020f0','#daa520', '#54ff9f'];
+    custom_cmap = matplotlib.colors.ListedColormap(colors, name = 'custom_cmap')
 
     #plot - set up grid
     singletrial_pngs = map(lambda x: ''.join(['_'.join([subj, task]),'_',x,'.png']), clusters.columns)
@@ -86,8 +83,8 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
 
     #plot significant stimlocked traces
     #xspan = np.arange(-500, clusters.shape[0]-500)
-    cplot = clusters.plot(ax = ax1, colormap = cmap, grid = 'off', linewidth = 3)
-
+    cplot = clusters.plot(ax = ax1, colormap = custom_cmap, grid = 'off', linewidth = 3)
+    
     #pull line colors for shading (so sems and lines have same)
     colors = list()
     clines = cplot.get_children() #all lines in plot
@@ -102,11 +99,13 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
         ax1.fill_between(np.arange(len(x)), x - sem, x + sem, alpha=0.7, color = colors[i])
 
     #plot significant resp locked traces
-    cplot = clusters_resp.plot(np.arange(st_tp, en_tp+1),ax = ax2, colormap = plt.cm.Spectral, grid = 'off', linewidth = 3)
+    #cplot = clusters_resp.plot(np.arange(st_tp, en_tp+1),ax = ax2, colormap = plt.cm.Spectral, grid = 'off', linewidth = 3)
+    cplot = clusters_resp.plot(np.arange(st_tp, en_tp+1),ax = ax2, colormap = cmap, grid = 'off', linewidth = 3)
+
 
     #single trials
     for i, fname in enumerate(singletrial_pngs):
-        arr = plt.imread(os.path.join(datadir, 'PCA','SingleTrials', fname))
+        arr = plt.imread(os.path.join(datadir, 'PCA','SingleTrials_hclust', fname))
         [x,y] = np.unravel_index(i,(n,n))
         span = int(np.ceil(25/n))
         ax4 = f.add_subplot(gs[2+x, y*span:(y+1)*span])
@@ -140,9 +139,6 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     ax2.get_xaxis().tick_bottom()
     ax2.get_yaxis().tick_left()
 
-    #change trace colors
-    #for line, klass in zip(ax1.lines, clusters):
-    #   line.set_color(colors[klass])
     return f, (ax1, ax2)
 
 
