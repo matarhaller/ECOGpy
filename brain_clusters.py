@@ -11,7 +11,7 @@ import brewer2mpl
 import scipy.stats as stats
 import matplotlib
 
-def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/groupidx_activeclusters.csv'):
+def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots_hclust/groupidx_activeclusters_hclust.csv'):
     """
     Plot mean traces of cluster with color coded brain. Only plots active clusters
     Taken from plot_cluster_brain.ipynb
@@ -29,8 +29,9 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     #get subject/task cluster designations - as weights (from groupidx); format as dataframe
     df = pd.DataFrame.from_csv(groupidx)
     subj_task = df.loc[df['subj_task'] == '_'.join([subj, task])]
+    subj_task = subj_task.sort('active_elecs')
 
-    weights = subj_task[['group', 'active_elecs']].loc[subj_task.active_cluster==True].set_index('active_elecs')
+    weights = subj_task[['group', 'active_elecs']].loc[(subj_task.active_cluster_stim.isin([True])) | (subj_task.active_cluster_resp.isin([True]))].set_index('active_elecs') #needs to be active in either stim or resp
     #1 column of cluster designations (index is active_elecs)
 
     filename = os.path.join(datadir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')
@@ -41,9 +42,9 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     #calculate mean trace per cluster; format as dataframe
     clusters = dict()
     sems = list()
-    for c in subj_task[['active_cluster', 'active_elecs','group']].groupby(subj_task['group']): #active elecs per active cluster
+    for c in subj_task[['active_cluster_stim','active_cluster_resp', 'active_elecs','group']].groupby(subj_task['group']): #active elecs per active cluster
         c = c[1]
-        if not(all(c.active_cluster)):
+        if not((all(c.active_cluster_stim) | all(c.active_cluster_resp))):
             continue
         cidx = np.in1d(subj_task.active_elecs, c.active_elecs)
         cdata = HGdata[cidx,:,:]
@@ -140,6 +141,180 @@ def plot_cluster_brain(subj, task, reconpath, xycoords = 'xycoords.p', datadir =
     ax2.get_yaxis().tick_left()
 
     return f, (ax1, ax2)
+
+def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/duration_hclust/groupidx_activeclusters_hclust_withduration.csv'):
+    """
+    Plot mean traces of cluster with color coded brain. Only plots active clusters. outlines the electrodes with Rval>01 AND pval<0.05
+    Taken from plot_cluster_brain_duration.ipynb
+    Create custom colormaps so colors will match withing same subj, different task, diff num of clusters
+    """
+    filename = os.path.join(datadir, 'Subjs', subj, xycoords)
+    with open(filename, 'r') as f:
+        xycoords = pickle.load(f)
+        f.close()
+
+    #format as dataframe (for use in chris's plotting function)
+    xycoords = pd.DataFrame(np.array(xycoords.values()), columns=['x_2d', 'y_2d'], index=np.array(xycoords.keys())+1)
+
+    #get subject/task duration R and pvalues - as weights (from groupidx_activeclusters_duration); format as dataframe
+    df = pd.DataFrame.from_csv(groupidx)
+    subj_task = df[(df.subj.isin([subj])) & (df.task.isin([task]))]
+    subj_task = subj_task.sort('active_elecs')
+    weights = subj_task[['group','Rvals', 'pvals', 'active_elecs']].loc[(subj_task.active_cluster_stim.isin([True])) | (subj_task.active_cluster_resp.isin([True]))].set_index('active_elecs') #needs to be active in both to be duration
+    
+    filename = os.path.join(datadir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')
+    data = spio.loadmat(filename, struct_as_record = True)
+    HGdata = data['data_percent']
+    srate = data['srate']
+    active_elecs_orig = data['active_elecs'].squeeze()
+
+    sems = list()
+    clusters = dict()
+
+    #elecs to exclude from HGdata
+    good = np.in1d(active_elecs_orig, subj_task.active_elecs) #elecs that are in active clusters
+    HGdata = HGdata[good, :,:]
+
+    for c in subj_task[['active_cluster_stim','active_cluster_resp', 'active_elecs','group']].groupby(subj_task['group']): #active elecs per active cluster
+        c = c[1]
+        if not((all(c.active_cluster_stim) | all(c.active_cluster_resp))):
+            continue
+        cidx = np.in1d(subj_task.active_elecs, c.active_elecs)
+        cdata = HGdata[cidx,:,:]
+        cdata = np.vstack([item for item in cdata]) #same thing as cdata.reshape([-1,2783]); gives you trials x time        
+        sems.append(stats.sem(cdata, axis = 0))
+        #clusters.append(cdata.mean(axis = 0))
+        #clusters[''.join(['c', str(c.group.iloc[0])])] = cdata.mean(axis = 0)
+        clusters[str(c.group.iloc[0])] = cdata.mean(axis = 0)
+    clusters = pd.DataFrame(clusters)
+
+    #sort column indices (important if have >=10 clusters)
+    cols = map(str, np.sort(map(int, clusters.columns)))
+    clusters = clusters[cols]
+
+    #append c
+    cols2 = [''.join(['c', x]) for x in cols]
+    clusters.columns = cols2
+
+    #resp locked
+    filename = os.path.join(datadir, 'PCA','ShadePlots_hclust_thresh10', '_'.join([subj, task, 'cdata_resp.mat']))
+    data = spio.loadmat(filename, struct_as_record = True)
+    params = data['Params'].flatten()
+    data = data['cdata_resp_all']
+    st_tp = params['st'][0]/1000*srate
+    en_tp = params['en'][0]/1000*srate
+
+    c = list()
+    [c.append(str(x[0])) for x in data[:,0]]
+    c = [x.split('_')[-1].split('.')[0] for x in c]
+    cdict = dict(zip(c, [x.mean(axis = 0) for x in data[:,1]]))
+    clusters_resp= pd.DataFrame(cdict)
+
+    #sort column indices (important if have >=10 clusters)
+    cols = [x.split('c') for x in clusters_resp.columns]
+    cols = [x[-1] for x in cols]
+    cols = map(str, np.sort(map(int, cols)))
+    #append c
+    cols = [''.join(['c', x]) for x in cols]
+    #reorder columsn
+    clusters_resp = clusters_resp[cols]
+
+
+    #color stuff
+    #colors = ['#b22222','#228b22','#32cd32','#40e0d0','#00008b', '#ff7f50' ,'#c71585','#a020f0','#daa520', '#54ff9f'];
+    colors = ['#6a3d9a','#ff7f00','#33a02c','#e31a1c','#1f78b4', '#fdbf6f', '#cab2d6', '#b2df8a','#fb9a99', '#a6cee3'];
+
+    custom_cmap = matplotlib.colors.ListedColormap(colors, name = 'custom_cmap')
+
+    #create figures (with single trials)
+    singletrial_pngs = map(lambda x: ''.join(['_'.join([subj, task]),'_',x,'.png']), clusters.columns)
+    n = int(np.ceil(np.sqrt(len(clusters.columns)))) #number of rows/cols for single trials
+
+    gs = gridspec.GridSpec(2+n, 50)
+    f, ax1 = plt.subplots(figsize = (35,20))
+    plt.title(' '.join([subj, task]))
+
+    ax1 = plt.subplot(gs[0, :25])
+    ax2 = plt.subplot(gs[1, 10:20])
+    ax3 = plt.subplot(gs[:, 26:])
+
+    #plots significant stim locked traces
+    #xspan = np.arange(-500, clusters.shape[0]-500)
+    cplot = clusters.plot(ax = ax1, colormap = custom_cmap, grid = 'off', linewidth = 3)
+
+
+    #pull line colors for shading
+    colors = list()
+    clines = cplot.get_children() #all lines in plot
+    [colors.append(x.get_color()) for x in clines if hasattr(x,'get_color')]
+    colors = filter(lambda c: c != "k", colors) #remove black
+    cmap = matplotlib.colors.ListedColormap(colors)
+
+    #single trials
+    dur_clust = weights.group.loc[(weights.Rvals>0.1) & (weights.pvals<0.05)]
+    dur_clust = np.unique(dur_clust.values)
+
+    for i, fname in enumerate(singletrial_pngs):
+        arr = plt.imread(os.path.join(datadir, 'PCA','SingleTrials_hclust', fname))
+        [x,y] = np.unravel_index(i,(n,n))
+        span = int(np.ceil(25/n))
+        ax4 = f.add_subplot(gs[2+x, y*span:(y+1)*span])
+        ax4.imshow(arr, aspect = 'equal')
+        plt.setp(ax4.spines.values(), color=colors[i], linewidth = 3.5)
+        ax4.xaxis.set_ticklabels([])#hide labels
+        ax4.xaxis.set_ticks([])#hide gridlines
+        ax4.yaxis.set_ticklabels([])
+        ax4.yaxis.set_ticks([])
+        
+        clust = int(fname.split('_')[-1].split('.')[0][1:])
+        if(clust in dur_clust):
+            plt.setp(ax4, title = ''.join(['c', str(clust), ' duration']))
+        else:
+            plt.setp(ax4, title = ''.join(['c', str(clust)]))
+
+    #SEMs
+    for i, j in enumerate(clusters.keys()):
+        x = clusters.values[:,i];
+        sem = sems[i]
+        #ax1.plot(x, linewidth = 3, color = colors[j])
+        ax1.fill_between(np.arange(len(x)), x - sem, x + sem, alpha=0.7, color = colors[i])
+
+
+    #create list of colors for scatter
+    c = list()
+    u = np.unique(weights.group)
+    for i in weights.group:
+        idx = np.where(u == i)
+        c.append(colors[idx[0]])
+
+    #plot recon
+    plot_xy_map(weights[['group']], locs = xycoords.loc[weights.index], ax = ax3, colors = c, szmult=250, cmap = cmap, im_path = reconpath)
+
+    #highlight duration
+    idx = (weights.Rvals>0.1) & (weights.pvals<0.05)
+    x = xycoords.loc[weights.index]['x_2d'][idx]
+    y = xycoords.loc[weights.index]['y_2d'][idx]
+    ax3.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 350, linewidth = 4.5)
+    ax3.scatter(x, y, facecolors = 'None', edgecolor = '#FFFF99', s = 350, linewidth = 2.5)
+
+    #plot significant resp locked traces
+    cplot = clusters_resp.plot(np.arange(st_tp, en_tp+1),ax = ax2, colormap = cmap, grid = 'off', linewidth = 3)
+
+    ax1.autoscale(tight=True)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.get_xaxis().tick_bottom()
+    ax1.get_yaxis().tick_left()
+    ax1.legend(loc = 'upper right')
+
+    ax2.autoscale(tight=True)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.get_xaxis().tick_bottom()
+    ax2.get_yaxis().tick_left()
+    ax2.legend(bbox_to_anchor = (1.05, 1), loc = 2, borderaxespad = 0.)
+
+    return f, (ax1, ax2, ax3, ax4)
 
 
 def plot_cluster_brain_withinactive(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/Users/matar/Documents/MATLAB/DATA/Avgusta/', groupidx = '/Users/matar/Dropbox/PCA_elecs/groupidx.csv'):
