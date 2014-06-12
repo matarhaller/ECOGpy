@@ -39,8 +39,11 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     #stim locked
     weights = dict()
     dur_clust = dict()
-    weights['stim'] = subj_task[['group', 'active_elecs', 'Rvals','pvals']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs') 
-    dur_clust['stim'] = weights['stim'].group.loc[(weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05)]
+    weights['stim'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset', 'max_resplocked','postRT_max']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs') 
+    weights['stim'].max_resplocked[pd.isnull(weights['stim'].max_resplocked)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
+
+
+    dur_clust['stim'] = weights['stim'].group.loc[(weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0)]
     dur_clust['stim'] = np.unique(dur_clust['stim'].values)
 
     sems = dict()
@@ -49,11 +52,11 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
         c = c[1]
         if not(all(c.active_cluster_stim)):
             continue
-        filename = os.path.join(datadir, 'PCA','SingleTrials_hclust', '_'.join([subj, task, ''.join(['c', str(c.group.iloc[0])])]))
+        filename = os.path.join(datadir, 'PCA','SingleTrials_hclust', '_'.join([subj, task, ''.join(['c', str(int(c.group.iloc[0]))])]))
         data = spio.loadmat(filename)
         cdata = data['cdata']
-        sems[str(c.group.iloc[0])] = stats.sem(cdata, axis = 0)
-        clusters[str(c.group.iloc[0])] = cdata.mean(axis = 0)
+        sems[str(int(c.group.iloc[0]))] = stats.sem(cdata, axis = 0)
+        clusters[str(int(c.group.iloc[0]))] = cdata.mean(axis = 0)
     clusters = pd.DataFrame(clusters)
     clusters_sem = pd.DataFrame(sems)
 
@@ -68,8 +71,9 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     clusters_sem.columns = cols2
 
     #resp locked
-    weights['resp'] = subj_task[['group', 'active_elecs', 'Rvals','pvals']].loc[subj_task.active_cluster_resp.isin([True])].set_index('active_elecs') #needs to be active in resp
-    dur_clust['resp'] = weights['resp'].group.loc[(weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05)]
+    weights['resp'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset','max_resplocked','postRT_max']].loc[subj_task.active_cluster_resp.isin([True])].set_index('active_elecs') #needs to be active in resp
+    
+    dur_clust['resp'] = weights['resp'].group.loc[(weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0)]
     dur_clust['resp'] = np.unique(dur_clust['resp'].values)
 
     filename = os.path.join(datadir, 'PCA','ShadePlots_hclust_thresh15', '_'.join([subj, task, 'cdata_resp.mat']))
@@ -166,7 +170,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     plot_xy_map(weights['stim'][['group']], locs = xycoords.loc[weights['stim'].index], ax = ax3, colors = c, szmult=250, cmap = cmap, im_path = reconpath)    
 
     #highlight duration
-    idx = (weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05)
+    idx = (weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0)
     x = xycoords.loc[weights['stim'].index]['x_2d'][idx]
     y = xycoords.loc[weights['stim'].index]['y_2d'][idx]
     ax3.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 350, linewidth = 4.5)
@@ -231,7 +235,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     plot_xy_map(weights['resp'][['group']], locs = xycoords.loc[weights['resp'].index], ax = ax5, colors = c, szmult=250, cmap = cmap, im_path = reconpath)    
 
     #highlight duration
-    idx = (weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05)
+    idx = (weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0)
     x = xycoords.loc[weights['resp'].index]['x_2d'][idx]
     y = xycoords.loc[weights['resp'].index]['y_2d'][idx]
     ax5.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 350, linewidth = 4.5)

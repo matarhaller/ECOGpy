@@ -7,7 +7,7 @@ import sys
 import cPickle as pickle
 import pandas as pd
 
-def duration(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/', start_time = 0, stop_time_pre = -1000, stop_time_post = 100, step = 25, numiter = 1000):
+def duration(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/', start_time = 0, stop_time_pre = -1000, stop_time_post = 525, step = 25, numiter = 1000):
     """
     calculate R and pvalue for duration correlation for each cluster for a subj/task
     creates a dictionary of design matrices- onset is always onset of significant HG 
