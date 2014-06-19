@@ -15,7 +15,7 @@ library(cluster)
 DATADIR = '/home/knight/matar/MATLAB/DATA/Avgusta/Subjs/'
 saveDir = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/'
 
-d = read.table('test2.subjects',sep = '_') #only run on my 4 subj
+d = read.table('test.subjects',sep = '_') #only run on my 4 subj
 df = data.frame()
 
 for (i in 1:nrow(d) ) {
@@ -34,26 +34,25 @@ for (i in 1:nrow(d) ) {
            
   fit = principal(data, nfactors = efa, rotate='varimax') #calculate PCA with rotation
   
-  distance = dist(fit$loadings, method = 'correlation') #calculate distance between weights per elec
-  clusters<-hclust(distance, method = 'complete') #calculate hierarchical clusters
-  groups <- cutree(clusters, k=efa)  #group clusters into number of components
-  
-  df = rbind(df, data.frame(subj, task, active_elecs, groups)) #add groups to dataframe
+  #write loadings csv
   df_loadings = cbind(data.frame(unclass(fit$loadings)), data.frame(fit$communality))
   df_SSloadings = data.frame(fit$values[1:efa])
-  
-  #write loadings csv
   filename = paste(saveDir, subj, '_', task, '_loadings.csv',sep = "")
   write.table(df_loadings,file = filename, sep =",", row.names=FALSE)
   filename = paste(saveDir, subj, '_', task, '_SSloadings.csv',sep = "")
   write.table(df_SSloadings,file = filename, sep =",", row.names=FALSE)
   
+  #distance = dist(fit$loadings, method = 'correlation') #calculate distance between weights per elec
+  #clusters<-hclust(distance, method = 'complete') #calculate hierarchical clusters
+  #groups <- cutree(clusters, k=efa)  #group clusters into number of components
+  #df = rbind(df, data.frame(subj, task, active_elecs, groups)) #add groups to dataframe
+
   #plot tree
-  a = plot(clusters,labels = as.character(active_elecs))
-  b = rect.hclust(clusters, k = efa, cluster = groups, border="red") 
-  filename = paste(saveDir, subj, "_", task, '_hclust.png',sep = "")
-  dev.copy(png,filename)
-  dev.off()
+  #a = plot(clusters,labels = as.character(active_elecs))
+  #b = rect.hclust(clusters, k = efa, cluster = groups, border="red") 
+  #filename = paste(saveDir, subj, "_", task, '_hclust.png',sep = "")
+  #dev.copy(png,filename)
+  #dev.off()
     
   #plot components
   scores = as.data.frame(cbind(fit$scores, 1:nrow(fit$scores)))

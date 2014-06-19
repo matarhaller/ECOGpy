@@ -11,7 +11,7 @@ import brewer2mpl
 import scipy.stats as stats
 import matplotlib
 
-def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/duration_dict/groupidx_activeclusters_hclust_withduration_thresh15.csv'):
+def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xycoords = 'xycoords.p', datadir = '/home/knight/matar/MATLAB/DATA/Avgusta/', groupidx = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/duration_dict/groupidx_activeclusters_hclust_withduration_thresh15_maxRTlocked_withcriteria.csv'):
     
     """
     Plot mean traces of cluster with color coded brain. Only plots active clusters. outlines the electrodes with Rval>01 AND pval<0.05
@@ -35,96 +35,102 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     df = pd.DataFrame.from_csv(groupidx)
     subj_task = df[(df.subj.isin([subj])) & (df.task.isin([task]))]
     subj_task = subj_task.sort('active_elecs')
-    
-    #stim locked
-    weights = dict()
-    dur_clust = dict()
-    weights['stim'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset', 'max_resplocked','postRT_max']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs') 
-    weights['stim'].max_resplocked[pd.isnull(weights['stim'].max_resplocked)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
-    weights['stim'].postRT_max[pd.isnull(weights['stim'].postRT_max)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
 
-    dur_clust['stim'] = weights['stim'].group.loc[(weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0) & ((weights['stim'].postRT_max<=150) | (weights['stim'].postRT_max>=450))]
-    dur_clust['stim'] = np.unique(dur_clust['stim'].values)
 
-    sems = dict()
-    clusters = dict()
-    for c in subj_task[['active_cluster_stim','active_cluster_resp', 'active_elecs','group']].groupby(subj_task['group']): #active elecs per active cluster
-        c = c[1]
-        if not(all(c.active_cluster_stim)):
-            continue
-        filename = os.path.join(datadir, 'PCA','SingleTrials_hclust', '_'.join([subj, task, ''.join(['c', str(int(c.group.iloc[0]))])]))
-        data = spio.loadmat(filename)
-        cdata = data['cdata']
-        sems[str(int(c.group.iloc[0]))] = stats.sem(cdata, axis = 0)
-        clusters[str(int(c.group.iloc[0]))] = cdata.mean(axis = 0)
-    clusters = pd.DataFrame(clusters)
-    clusters_sem = pd.DataFrame(sems)
+    if stim_or_resp == 'stim':
+        #stim locked
+        #weights = dict()
+        #dur_clust = dict()
+        #weights['stim'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset', 'max_resplocked','postRT_max']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs') 
+        #weights['stim'].max_resplocked[pd.isnull(weights['stim'].max_resplocked)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
+        #weights['stim'].postRT_max[pd.isnull(weights['stim'].postRT_max)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
+        #dur_clust['stim'] = weights['stim'].group.loc[(weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0) & ((weights['stim'].postRT_max<=150) | (weights['stim'].postRT_max>=450))]
 
-    #sort column indices (important if have >=10 clusters)
-    cols = map(str, np.sort(map(int, clusters.columns)))
-    clusters = clusters[cols]
-    clusters_sem = clusters_sem[cols]
+        weights = subj_task[['group','active_elecs','all_criteria_passed']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs')
+        dur_clust = weights.group.loc[weights.all_criteria_passed]
+        dur_clust = np.unique(dur_clust.values)
 
-    #append c
-    cols2 = [''.join(['c', x]) for x in cols]
-    clusters.columns = cols2
-    clusters_sem.columns = cols2
+        sems = dict()
+        clusters = dict()
+        for c in subj_task[['active_cluster_stim','active_cluster_resp', 'active_elecs','group']].groupby(subj_task['group']): #active elecs per active cluster
+            c = c[1]
+            if not(all(c.active_cluster_stim)):
+                continue
+            filename = os.path.join(datadir, 'PCA','SingleTrials_hclust', '_'.join([subj, task, ''.join(['c', str(int(c.group.iloc[0]))])]))
+            data = spio.loadmat(filename)
+            cdata = data['cdata']
+            sems[str(int(c.group.iloc[0]))] = stats.sem(cdata, axis = 0)
+            clusters[str(int(c.group.iloc[0]))] = cdata.mean(axis = 0)
+        clusters = pd.DataFrame(clusters)
+        clusters_sem = pd.DataFrame(sems)
 
-    #resp locked
-    weights['resp'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset','max_resplocked','postRT_max']].loc[subj_task.active_cluster_resp.isin([True])].set_index('active_elecs') #needs to be active in resp
-    
-    dur_clust['resp'] = weights['resp'].group.loc[(weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0) & ((weights['resp'].postRT_max<=150) | (weights['resp'].postRT_max>=450))]
-    dur_clust['resp'] = np.unique(dur_clust['resp'].values)
+        #sort column indices (important if have >=10 clusters)
+        cols = map(str, np.sort(map(int, clusters.columns)))
+        clusters = clusters[cols]
+        clusters_sem = clusters_sem[cols]
 
-    filename = os.path.join(datadir, 'PCA','ShadePlots_hclust_thresh15', '_'.join([subj, task, 'cdata_resp.mat']))
-    data = spio.loadmat(filename, struct_as_record = True)
-    params = data['Params'].flatten()
-    srate = data['srate']
-    data = data['cdata_resp_all']
-    st_tp = params['st'][0]/1000*srate
-    en_tp = params['en'][0]/1000*srate
+        #append c
+        cols2 = [''.join(['c', x]) for x in cols]
+        clusters.columns = cols2
+        clusters_sem.columns = cols2
 
-    c = list()
-    [c.append(str(x[0])) for x in data[:,0]]
-    c = [x.split('_')[-1].split('.')[0] for x in c]
-    cdict = dict(zip(c, [x.mean(axis = 0) for x in data[:,1]]))
-    clusters_resp= pd.DataFrame(cdict)
-    cdict_sem = dict(zip(c, [stats.sem(x, axis = 0) for x in data[:,1]]))
-    clusters_resp_sem = pd.DataFrame(cdict_sem)
+    elif stim_or_resp == 'resp':
+        #resp locked
+        #weights['resp'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset','max_resplocked','postRT_max']].loc[subj_task.active_cluster_resp.isin([True])].set_index('active_elecs') #needs to be active in resp
+        #dur_clust['resp'] = weights['resp'].group.loc[(weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0) & ((weights['resp'].postRT_max<=150) | (weights['resp'].postRT_max>=450))]
 
-    #sort column indices (important if have >=10 clusters)
-    cols = [x.split('c') for x in clusters_resp.columns]
-    cols = [x[-1] for x in cols]
-    cols = map(str, np.sort(map(int, cols)))
+        weights = subj_task[['group','active_elecs','all_criteria_passed']].loc[(subj_task.active_cluster_resp.isin([True]))].set_index('active_elecs')
+        dur_clust = weights.group.loc[weights.all_criteria_passed]
+        dur_clust = np.unique(dur_clust.values)
 
-    #append c
-    cols = [''.join(['c', x]) for x in cols]
+        filename = os.path.join(datadir, 'PCA','ShadePlots_hclust_thresh15', '_'.join([subj, task, 'cdata_resp.mat']))
+        data = spio.loadmat(filename, struct_as_record = True)
+        params = data['Params'].flatten()
+        srate = data['srate']
+        data = data['cdata_resp_all']
+        st_tp = params['st'][0]/1000*srate
+        en_tp = params['en'][0]/1000*srate
 
-    #reorder columsn
-    clusters_resp = clusters_resp[cols]
-    clusters_resp_sem = clusters_resp_sem[cols]
+        c = list()
+        [c.append(str(x[0])) for x in data[:,0]]
+        c = [x.split('_')[-1].split('.')[0] for x in c]
+        cdict = dict(zip(c, [x.mean(axis = 0) for x in data[:,1]]))
+        clusters = pd.DataFrame(cdict)
+        cdict_sem = dict(zip(c, [stats.sem(x, axis = 0) for x in data[:,1]]))
+        clusters_sem = pd.DataFrame(cdict_sem)
+
+        #sort column indices (important if have >=10 clusters)
+        cols = [x.split('c') for x in clusters.columns]
+        cols = [x[-1] for x in cols]
+        cols = map(str, np.sort(map(int, cols)))
+
+        #append c
+        cols = [''.join(['c', x]) for x in cols]
+
+        #reorder columsn
+        clusters = clusters[cols]
+        clusters_sem = clusters_sem[cols]
+    else:
+        raise AssertionError, [stim_or_resp + ' is not a valid argument. you need to specify stim or resp']
+
 
     #figure properties
     n = int(np.ceil(np.sqrt(len(clusters.columns)))) #number of rows/cols for single trials
-    m = int(np.ceil(np.sqrt(len(clusters_resp.columns)))) #need to move resp up
 
     f, ax1 = plt.subplots(figsize = (55,50))
-    gs = gridspec.GridSpec(2+n+m, 50)
-
-    mid = int(np.ceil(gs.get_geometry()[0]/2))
+    gs = gridspec.GridSpec(2+n, 50)
 
     ax1 = plt.subplot(gs[0, :25])
     ax3 = plt.subplot(gs[:n+1, 26:])
 
-    ax2 = plt.subplot(gs[n+1, 10:25])
-    ax5 = plt.subplot(gs[n+1:, 26:])
-
-    ##STIM 
     #plots significant stim locked traces
     singletrial_pngs = map(lambda x: ''.join(['_'.join([subj, task]),'_',x,'.png']), clusters.columns)
 
-    cplot = clusters.plot(ax = ax1, colormap = custom_cmap, grid = 'off', linewidth = 3)
-
+    if stim_or_resp == 'stim':
+        cplot = clusters.plot(ax = ax1, colormap = custom_cmap, grid = 'off', linewidth = 3)
+    else:
+        cplot = clusters.plot(np.arange(st_tp, en_tp+1),ax = ax1, colormap = custom_cmap, grid = 'off', linewidth = 3) #resp locked
+    
     #pull line colors for shading
     colors = list()
     clines = cplot.get_children() #all lines in plot
@@ -143,7 +149,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
         plt.setp(ax4.spines.values(), color=colors[i], linewidth = 3.5)
 
         clust = int(fname.split('_')[-1].split('.')[0][1:])
-        if (clust in dur_clust['stim']):
+        if (clust in dur_clust):
             plt.setp(ax4, title = ''.join(['c', str(clust), ' duration']))
         else:
             plt.setp(ax4, title = ''.join(['c', str(clust)]))
@@ -157,27 +163,30 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     for q, i in enumerate(clusters.columns):
         x = clusters[i]
         sem = clusters_sem[i]
-        ax1.fill_between(np.arange(len(x)), x - sem, x + sem, alpha = 0.7, color = colors[q])
-
+        if stim_or_resp == 'stim':
+            ax1.fill_between(np.arange(len(x)), x - sem, x + sem, alpha = 0.7, color = colors[q])
+        else:
+            ax1.fill_between(np.arange(st_tp, en_tp+1), x - sem, x + sem, alpha = 0.7, color = colors[q])
+            
     #create list of colors for scatter
     c = list()
-    u = np.unique(weights['stim'].group)
-    for i in weights['stim'].group:
+    u = np.unique(weights.group)
+    for i in weights.group:
         idx = np.where(u == i)
         c.append(colors[idx[0]])
 
     #plot recon
-    plot_xy_map(weights['stim'][['group']], locs = xycoords.loc[weights['stim'].index], ax = ax3, colors = c, szmult=250, cmap = cmap, im_path = reconpath)    
+    plot_xy_map(weights[['group']], locs = xycoords.loc[weights.index], ax = ax3, colors = c, szmult=400, cmap = cmap, im_path = reconpath)    
 
     #highlight duration
-    #idx = (weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0)
-    idx = (weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0) & ((weights['stim'].postRT_max<=150) | (weights['stim'].postRT_max>=450))
-
-    x = xycoords.loc[weights['stim'].index]['x_2d'][idx]
-    y = xycoords.loc[weights['stim'].index]['y_2d'][idx]
-    ax3.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 350, linewidth = 4.5)
-    ax3.scatter(x, y, facecolors = 'None', edgecolor = '#FFFF99', s = 350, linewidth = 2.5)
-    ax3.set_title('_'.join([subj, task, 'STIMULUS']))
+    idx = weights.all_criteria_passed
+    
+    x = xycoords.loc[weights.index]['x_2d'][idx]
+    y = xycoords.loc[weights.index]['y_2d'][idx]
+    ax3.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 500, linewidth = 4.5)
+    #ax3.scatter(x, y, facecolors = 'None', edgecolor = '#FFFF99', s = 500, linewidth = 2.5)
+    ax3.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 500, linewidth = 2.5)
+    ax3.set_title(' '.join([subj, task, stim_or_resp.upper()]), fontsize = 36)
 
     ax1.autoscale(tight=True)
     ax1.spines['top'].set_visible(False)
@@ -185,72 +194,6 @@ def plot_cluster_brain_duration(subj, task, reconpath, xycoords = 'xycoords.p', 
     ax1.get_xaxis().tick_bottom()
     ax1.get_yaxis().tick_left()
     ax1.legend(loc = 'upper right')
-
-    ## RESP
-    #plot significant resp locked traces
-    singletrial_pngs = map(lambda x: ''.join(['_'.join([subj, task]),'_',x,'.png']), clusters_resp.columns)
-
-    #plots significant resp locked traces
-    cplot = clusters_resp.plot(np.arange(st_tp, en_tp+1),ax = ax2, colormap = custom_cmap, grid = 'off', linewidth = 3) #changed cmap to custom_cmap
-
-    #pull line colors for shading
-    colors = list()
-    clines = cplot.get_children() #all lines in plot
-    [colors.append(x.get_color()) for x in clines if hasattr(x,'get_color')]
-    colors = filter(lambda c: c != "k", colors) #remove black
-    cmap = matplotlib.colors.ListedColormap(colors)
-
-    #single trials
-    for i, fname in enumerate(singletrial_pngs):
-        arr = plt.imread(os.path.join(datadir, 'PCA','SingleTrials_hclust', fname))
-        [x,y] = np.unravel_index(i,(m,m))
-        span = int(np.ceil(25/m))
-        ax6 = f.add_subplot(gs[2+n+x, y*span:(y+1)*span])
-        ax6.imshow(arr, aspect = 'equal')        
-
-        plt.setp(ax6.spines.values(), color=colors[i], linewidth = 3.5)
-
-        clust = int(fname.split('_')[-1].split('.')[0][1:])
-        if (clust in dur_clust['resp']):
-            plt.setp(ax6, title = ''.join(['c', str(clust), ' duration']))
-        else:
-            plt.setp(ax6, title = ''.join(['c', str(clust)]))
-
-        ax6.xaxis.set_ticklabels([])#hide labels
-        ax6.xaxis.set_ticks([])#hide gridlines
-        ax6.yaxis.set_ticklabels([])
-        ax6.yaxis.set_ticks([])
-
-    for q, i in enumerate(clusters_resp.columns):
-        x = clusters_resp[i]
-        sem = clusters_resp_sem[i]
-        ax2.fill_between(np.arange(st_tp, en_tp+1), x - sem, x + sem, alpha = 0.7, color = colors[q])
-
-    #create list of colors for scatter
-    c = list()
-    u = np.unique(weights['resp'].group)
-    for i in weights['resp'].group:
-        idx = np.where(u == i)
-        c.append(colors[idx[0]])
-
-    #plot recon
-    plot_xy_map(weights['resp'][['group']], locs = xycoords.loc[weights['resp'].index], ax = ax5, colors = c, szmult=250, cmap = cmap, im_path = reconpath)    
-
-    #highlight duration
-    #idx = (weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0)
-    idx = (weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0) & ((weights['resp'].postRT_max<=150) | (weights['resp'].postRT_max>=450))
-    x = xycoords.loc[weights['resp'].index]['x_2d'][idx]
-    y = xycoords.loc[weights['resp'].index]['y_2d'][idx]
-    ax5.scatter(x, y, facecolors = 'None', edgecolor = 'black', s = 350, linewidth = 4.5)
-    ax5.scatter(x, y, facecolors = 'None', edgecolor = '#FFFF99', s = 350, linewidth = 2.5)
-    ax5.set_title('_'.join([subj, task, 'RESPONSE']))
-
-    ax2.autoscale(tight=True)
-    ax2.spines['top'].set_visible(False)
-    ax2.spines['right'].set_visible(False)
-    ax2.get_xaxis().tick_bottom()
-    ax2.get_yaxis().tick_left()
-    ax2.legend(loc = 'upper right')
 
     return f
 
