@@ -1,4 +1,3 @@
-#setwd('/Users/matar/Dropbox/PCA_elecs/')
 setwd('/home/knight/matar/PYTHON/ECOGpy/')
 library(psych)
 library(R.matlab)
@@ -7,19 +6,15 @@ source("EFA_Comparison.R")
 library(reshape2)
 library(ggplot2)
 library(cluster)
-#data = readMat('/Users/matar/Dropbox/PCA_elecs/PCAmtx_active.mat')
-#PCAmtx = t(data$PCAmtx)
 
-#DATADIR = '/Users/matar/cluster/MATLAB/DATA/Avgusta/Subjs/'
-#saveDir = '/Users/matar/Dropbox/PCA_elecs/plots/'
 DATADIR = '/home/knight/matar/MATLAB/DATA/Avgusta/Subjs/'
 saveDir = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/'
 
-d = read.table('test.subjects',sep = '_') #only run on my 4 subj
+d = read.table('test.subjects',sep = '_')
 df = data.frame()
 
-for (i in 1:nrow(d) ) {
-  
+#for (i in 1:nrow(d) ) {
+for (i in c(46)) {  
   subj = d$V1[i]
   task = d$V2[i]
   
@@ -65,5 +60,5 @@ for (i in 1:nrow(d) ) {
 
 }
 
-filename = paste(saveDir, 'groupidx.csv',sep = "")
-write.table(df,file = filename, sep =",", row.names=FALSE, col.names = c('subj','task','active elec', 'group'))
+#filename = paste(saveDir, 'groupidx.csv',sep = "")
+#write.table(df,file = filename, sep =",", row.names=FALSE, col.names = c('subj','task','active elec', 'group'))
