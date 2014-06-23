@@ -32,7 +32,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
     xycoords = pd.DataFrame(np.array(xycoords.values()), columns=['x_2d', 'y_2d'], index=np.array(xycoords.keys())+1)
 
     #get subject/task duration R and pvalues - as weights (from groupidx_activeclusters_duration); format as dataframe
-    df = pd.DataFrame.from_csv(groupidx)
+    df = pd.DataFrame.from_csv(groupidx).reset_index()
     subj_task = df[(df.subj.isin([subj])) & (df.task.isin([task]))]
     subj_task = subj_task.sort('active_elecs')
 
