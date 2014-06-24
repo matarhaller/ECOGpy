@@ -14,7 +14,7 @@ d = read.table('test.subjects',sep = '_')
 df = data.frame()
 
 #for (i in 1:nrow(d) ) {
-for (i in c(46)) {  
+for (i in c(36,37,38,39,40,41)) {  
   subj = d$V1[i]
   task = d$V2[i]
   

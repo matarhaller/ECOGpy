@@ -9,7 +9,7 @@ import numpy as np
 import sys
 import cPickle as pickle
 
-def shadeplots_allelecs_resp(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', thresh = 10, chunk_size = 100, start_resp = -500, end_resp = 500, black_chunk_size = 200):
+def shadeplots_allelecs_resp(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', thresh = 0, chunk_size = 100, start_resp = -500, end_resp = 500, black_chunk_size = 0):
     """ 
     calculate onset and offset window for every electrode - resp locked (ignoring clusters)
     saves csv for each sub/task for easy plotting later
@@ -34,6 +34,11 @@ def shadeplots_allelecs_resp(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Av
 
     #shift RTs by baseline
     RTs = RTs + abs(bl_st)
+    
+    if task == 'DecisionVis':
+        RTs = RTs-500
+    if task == 'DecisionAud':
+        RTs = RTs-600
 
     filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs','resplocked_all', ''.join([subj, '_', task, '_bigwindow.csv']))
     subjs = list(); tasks = list(); pthr = list(); elecs = list(); starts = list(); ends = list(); 
