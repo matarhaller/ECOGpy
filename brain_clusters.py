@@ -22,6 +22,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
     #color stuff
     colors = ['#1f78b4', '#33a02c','#e31a1c','#ff7f00', '#6a3d9a','gold','darkturquoise', '#cf00cf', 'saddlebrown','#b2df8a']
     custom_cmap = matplotlib.colors.ListedColormap(colors, name = 'custom_cmap')
+    cmap = matplotlib.colors.ListedColormap(colors)
 
     filename = os.path.join(datadir, 'Subjs', subj, xycoords)
     with open(filename, 'r') as f:
@@ -38,13 +39,6 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
 
 
     if stim_or_resp == 'stim':
-        #stim locked
-        #weights = dict()
-        #dur_clust = dict()
-        #weights['stim'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset', 'max_resplocked','postRT_max']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs') 
-        #weights['stim'].max_resplocked[pd.isnull(weights['stim'].max_resplocked)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
-        #weights['stim'].postRT_max[pd.isnull(weights['stim'].postRT_max)]=-999 #for the electrodes that have no resp locked activity - since NaN breaks things, set to -999
-        #dur_clust['stim'] = weights['stim'].group.loc[(weights['stim'].Rvals>0.1) & (weights['stim'].pvals<0.05) & (weights['stim'].best_offset>=-300) & (weights['stim'].best_offset <= 450) & (weights['stim'].max_resplocked<=0) & ((weights['stim'].postRT_max<=150) | (weights['stim'].postRT_max>=450))]
 
         weights = subj_task[['group','active_elecs','all_criteria_passed']].loc[(subj_task.active_cluster_stim.isin([True]))].set_index('active_elecs')
         dur_clust = weights.group.loc[weights.all_criteria_passed]
@@ -75,10 +69,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
         clusters_sem.columns = cols2
 
     elif stim_or_resp == 'resp':
-        #resp locked
-        #weights['resp'] = subj_task[['group', 'active_elecs', 'Rvals','pvals', 'best_offset','max_resplocked','postRT_max']].loc[subj_task.active_cluster_resp.isin([True])].set_index('active_elecs') #needs to be active in resp
-        #dur_clust['resp'] = weights['resp'].group.loc[(weights['resp'].Rvals>0.1) & (weights['resp'].pvals<0.05) & (weights['resp'].best_offset>=-300) & (weights['resp'].best_offset <= 450) & (weights['resp'].max_resplocked<=0) & ((weights['resp'].postRT_max<=150) | (weights['resp'].postRT_max>=450))]
-
+ 
         weights = subj_task[['group','active_elecs','all_criteria_passed']].loc[(subj_task.active_cluster_resp.isin([True]))].set_index('active_elecs')
         dur_clust = weights.group.loc[weights.all_criteria_passed]
         dur_clust = np.unique(dur_clust.values)
@@ -123,9 +114,10 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
     ax1 = plt.subplot(gs[0, :25])
     ax3 = plt.subplot(gs[:n+1, 26:])
 
-    #plots significant stim locked traces
     singletrial_pngs = map(lambda x: ''.join(['_'.join([subj, task]),'_',x,'.png']), clusters.columns)
 
+    """
+    #plots significant stim locked traces
     if stim_or_resp == 'stim':
         cplot = clusters.plot(ax = ax1, colormap = custom_cmap, grid = 'off', linewidth = 3)
     else:
@@ -137,6 +129,8 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
     [colors.append(x.get_color()) for x in clines if hasattr(x,'get_color')]
     colors = filter(lambda c: c != "k", colors) #remove black
     cmap = matplotlib.colors.ListedColormap(colors)
+
+    """
 
     #single trials
     for i, fname in enumerate(singletrial_pngs):
@@ -159,6 +153,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
         ax4.yaxis.set_ticklabels([])
         ax4.yaxis.set_ticks([])
 
+    """ 
     #SEMS
     for q, i in enumerate(clusters.columns):
         x = clusters[i]
@@ -167,14 +162,15 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
             ax1.fill_between(np.arange(len(x)), x - sem, x + sem, alpha = 0.7, color = colors[q])
         else:
             ax1.fill_between(np.arange(st_tp, en_tp+1), x - sem, x + sem, alpha = 0.7, color = colors[q])
-            
+    """
+        
     #create list of colors for scatter
     c = list()
     u = np.unique(weights.group)
     for i in weights.group:
         idx = np.where(u == i)
         c.append(colors[idx[0]])
-
+    
     #plot recon
     plot_xy_map(weights[['group']], locs = xycoords.loc[weights.index], ax = ax3, colors = c, szmult=400, cmap = cmap, im_path = reconpath)    
 

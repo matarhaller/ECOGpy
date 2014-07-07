@@ -9,7 +9,7 @@ import numpy as np
 import sys
 import cPickle as pickle
 
-def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', thresh = 10, chunk_size = 100, baseline = -500, black_chunk_size = 200):
+def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', thresh = 0, chunk_size = 100, baseline = -500, black_chunk_size = 0):
     """ 
     calculate onset and offset window for every active electrode (ignoring clusters)
     saves csv for each sub/task for easy plotting later
@@ -157,7 +157,7 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
         plt.close()
         """
 
-        data_dict = {'edata':edata, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx, 'srate':srate}
+        data_dict = {'edata':edata, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx, 'srate':srate,'thresh':thresh, 'chunksize':chunksize, 'black_chunksize':black_chunksize}
         data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '.p']))
         with open(data_path, 'w') as f:
             pickle.dump(data_dict, f)
