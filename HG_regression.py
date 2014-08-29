@@ -6,7 +6,7 @@ import sys
 import pandas as pd
 from sklearn import cross_validation, grid_search
 from sklearn.linear_model import Ridge
-from sklearn.preprocess import scale
+from sklearn.preprocessing import scale
 
 def HG_regression_allelecs_SGE(DATASET):
     """
