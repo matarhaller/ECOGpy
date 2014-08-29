@@ -47,7 +47,8 @@ def HG_regression_allelecs(subj, task):
     betas, predscores = [[] for i in range(2)]
 
     #set parameters
-    features = ['maxes', 'means', 'stds', 'sums', 'lats_pro']
+    #features = ['maxes', 'means', 'stds', 'sums', 'lats_pro']
+    features = ['maxes', 'means', 'stds', 'lats_pro']
     predictor = 'RTs'
 
     elecs = data_dict['means'].keys()
