@@ -6,6 +6,7 @@ import sys
 import pandas as pd
 from sklearn import cross_validation, grid_search
 from sklearn.linear_model import Ridge
+from sklearn.preprocess import scale
 
 def HG_regression_allelecs_SGE(DATASET):
     """
@@ -65,12 +66,18 @@ def HG_regression_allelecs(subj, task):
 
         #define training and test set
         X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, Y, test_size = 0.2)
-
+        
+        #normalize
+        X_train = scale(X_train.astype(float))
+        X_test = scale(X_test.astype(float))
+        y_train = scale(y_train.astype(float))
+        y_test = scale(y_test.astype(float))
+        
         #fit ridge regression with cross validation on training set
         alphas, models, scores, coefs = fit_model(X_train, y_train)
 
         #fit final model using mean hyperparam on all training data
-        model = Ridge(solver = 'lsqr', alpha = np.mean(alphas), normalize = True, fit_intercept = True)
+        model = Ridge(solver = 'lsqr', alpha = np.mean(alphas), normalize = False, fit_intercept = False)
         model.fit(X_train, y_train)
 
         #calculate prediction accuracy
@@ -94,7 +101,7 @@ def fit_model(X_train, y_train, cv = 100, test_size = .25):
     cvs = cross_validation.ShuffleSplit(len(y_train), n_iter = cv, test_size = 0.2)
 
     #define model
-    model = Ridge(solver = 'lsqr', normalize = True, fit_intercept = True)
+    model = Ridge(solver = 'lsqr', normalize = False, fit_intercept = False)
     params_grid = {'alpha': np.logspace(-3, 3, 10)}
 
     #grid search for hyperparameter
