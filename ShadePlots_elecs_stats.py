@@ -20,26 +20,20 @@ def shadeplots_elecs_stats():
     df = pd.read_csv(filename)
 
     for s_t in df.groupby(['subj','task']):
-        
-        ''''
-        if s_t[0] == ('GP27', 'SelfAud'):
-            pdb.set_trace()
-        else:
-            continue
-        '''
 
         subj, task = s_t[0]
         #load data
-        filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX.mat')
+        filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')
         data_dict = loadmat.loadmat(filename)
 
-        active_elecs, Params, srate, RT, data_all = [data_dict.get(k) for k in ['active_elecs','Params','srate','RTs','data']]
+        active_elecs, Params, srate, RT, data_all = [data_dict.get(k) for k in ['active_elecs','Params','srate','RTs','data_percent']]
         bl_st = Params['bl_st']
+        bl_st = bl_st/1000*srate
         #sys.stdout.flush()
 
         means, stds, maxes, lats, sums, lats_pro, RTs, num_dropped = [dict() for i in range(8)]
         
-        RT = RT + abs(bl_st) #RTs are calculated from stim onset, need to account for bl in HG_elecMTX
+        RT = RT + abs(bl_st) #RTs are calculated from stim onset, need to account for bl in HG_elecMTX_percent
 
         for row in s_t[1].itertuples():
             _, _, subj, task, cluster, pattern, elec, start_idx, end_idx, start_idx_resp, end_idx_resp, _, _ = row
