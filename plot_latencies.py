@@ -1,0 +1,70 @@
+from __future__ import division
+import pandas as pd
+import os
+import numpy as np
+import cPickle as pickle
+import matplotlib.pyplot as plt
+
+
+def plot_latencies():
+    """
+    plots histograms for lats_pro for each electrode for data within its significance window
+    also plots single trial latencies (with RT, not normalized)
+    saves pngs in PCA/Stats/latencies
+    """
+    SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/'
+
+    #only take duration electrodes
+    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_withdesignation_EDITED.csv')
+    df = pd.read_csv(filename)
+
+    df = df.query("pattern == 'D'")
+    df = df.sort(['subj','task','elec'])
+
+    for s_t in df.groupby(['subj','task']):
+        subj, task = s_t[0]
+        elecs = s_t[1].elec #duration electrodes
+
+        #pickle file with latencies per subj/task
+        filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
+        data_dict = pickle.load( open(filename, "rb" ) )
+
+        #RTs, latencies, and normalized latencies
+        RTs_dict = data_dict['RTs']
+        lats_dict = data_dict['lats']
+        lats_pro_dict = data_dict['lats_pro']
+        bl_st = data_dict['bl_st']
+
+        for elec in elecs:
+            onset = df[(df.subj == subj) & (df.task == task) & (df.elec == elec)].start_idx.values[0]
+            offset = df[(df.subj == subj) & (df.task == task) & (df.elec == elec)].end_idx_resp.values[0]
+
+            ridx = RTs_dict[elec].argsort(axis=0) 
+            RTs = RTs_dict[elec][ridx]
+            RTs = RTs - abs(bl_st) #remove bl from data (start from stim onset)
+            lats = lats_dict[elec][ridx]+onset #trials sorted by RTs, add HG onset back on so calculated from stim onset
+            lats_pro = lats_pro_dict[elec]
+
+            #plot
+            f,axs = plt.subplots(1,2, figsize = (10,5))
+            f.suptitle(' '.join([subj, task, '-', 'e'+str(elec)]), fontsize = 14)
+            axs[0].set_title(' : '.join([str(onset)+'ms', str(offset)+'ms']))
+            axs[1].set_title('latencies (normalized)')
+
+            for i in np.arange(2):
+                axs[i].autoscale(enable = True, tight = True)
+
+            axs[1].hist(lats_pro[~np.isnan(lats_pro)], bins = np.arange(0, 1, 0.1), color = 'blue')
+
+            for j in np.arange(len(RTs)):
+                axs[0].plot((RTs[j], RTs[j]), (j-0.5, j+0.5), 'k', linewidth = 3,zorder = 1)
+                axs[0].plot((lats[j], lats[j]), (j-0.5, j + 0.5), 'blue', linewidth = 3, zorder = 1)
+
+            filename = os.path.join(SJdir,'PCA','Stats', 'latencies', '_'.join([subj, task, 'e'+str(elec)+'.png']))
+            plt.savefig(filename, dpi = 100)
+            plt.close()
+
+
+    
+if __name__ == '__main__':
+    plot_latencies()
