@@ -24,19 +24,13 @@ def plot_correlations(to_scale = False):
 
     subj_task = df_designations[['subj', 'task']].drop_duplicates()
 
-
-    features = ['means','maxes','lats_pro','stds']
-    features.append('RTs')
-
-    #pairs of comparisons (feature pairs)
-    flist = []
-    for f1 in features:
-        for f2 in features:
-            flist.append('_'.join([f1, f2]))
-
     #calcualte correlations for each subj, task, elec
     for s_t in subj_task.itertuples():
         _, subj, task = s_t
+
+        #features = ['means','maxes','lats_pro','stds']
+        features = ['stds','maxes_rel','lats_pro','medians']
+        features.append('RTs')
 
         #filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
         #data_dict = pickle.load(open(filename, 'rb'))
@@ -44,25 +38,37 @@ def plot_correlations(to_scale = False):
         #elecs = data_dict['means'].keys()
         big_dict = dict()
         for f in features:
-            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', ''.join([subj, '_', task, '_', f, '.csv']))
+            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', '_'.join([subj, , task, f + '.csv']))
             df = pd.read_csv(filename)
             elecs = df.columns.values
             big_dict[f] = df
+        #big_dict['maxes_rel'] = big_dict['maxes'] - big_dict['means']
+        #features.append('maxes_rel')
+
+        #pairs of comparisons (feature pairs)
+        flist = []
+        for f1 in features:
+            for f2 in features:
+                flist.append('_'.join([f1, f2]))
 
         corr_dict = dict()
+
         for e in elecs:
 
             #plot scatterplot matrix
             if to_scale == True: #if to normalize features (easier to spot outliers)
                 #means, maxes, lats_pro, stds, RTs = [scale(data_dict[k][e].astype(float)) for k in features]
-                means, maxes, lats_pro, stds, RTs = [scale(big_dict[f][e].astype(float)) for f in features]
+                #means, maxes, lats_pro, stds, RTs, maxes_rel = [scale(big_dict[f][e].astype(float)) for f in features]
+                stds, maxes_rel, lats_pro, medians = [scale(big_dict[f][e].astype(float)) for f in features]
                 filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', '_'.join([subj, task, 'e'+str(e)+'_scaled.png']))
             else:
                 #means, maxes, lats_pro, stds, RTs = [data_dict[k][e] for k in features]
-                means, maxes, lats_pro, stds, RTs = [big_dict[f][e] for f in features]
+                #means, maxes, lats_pro, stds, RTs, maxes_rel = [big_dict[f][e] for f in features]
+                stds, maxes_rel, lats_pro, medians = [big_dict[f][e] for f in features]
                 filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', '_'.join([subj, task, 'e'+str(e)+'.png']))
 
-            tmp = pd.DataFrame({'means':means, 'maxes':maxes, 'lats_pro':lats_pro, 'stds':stds, 'RTs':RTs})
+            #tmp = pd.DataFrame({'means':means, 'maxes':maxes, 'maxes_rel': maxes_rel, 'lats_pro':lats_pro, 'stds':stds, 'RTs':RTs})
+                tmp = pd.DataFrame({'stds' : stds, 'maxes_rel': maxes_rel, 'lats_pro' : lats_pro , 'medians' : medians})
 
             f, ax = plt.subplots(figsize = (10, 10))
             scatter_matrix(tmp, ax = ax, grid = True, hist_kwds={'alpha': 0.5})
