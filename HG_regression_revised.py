@@ -24,7 +24,6 @@ def HG_regression_allelecs_SGE(DATASET):
 
     pickle.dump(reg_dict, open(filename + '.p', 'wb'))
     
-    ##STOPPED HERE - need to convert variables in data dict to fit the array
     elecs, alphas, scores, zcoefs, pval, features  = [reg_dict[key] for key in ['elecs','alphas','scores', 'zcoefs', 'pval', 'features']]
     score = np.median(scores, axis = 1)
     alpha = np.median(alphas, axis = 1)
@@ -55,18 +54,29 @@ def HG_regression_allelecs(subj, task):
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     reg_dict = dict()
 
-    # load data
-    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
-    data_dict = pickle.load(open(filename, 'rb'))
-   
-    all_alphas, all_models, all_scores, all_coefs, all_scores_null, all_pval, all_zcoefs = [[] for i in range(7)]
-
     #set parameters
     #features = ['maxes', 'means', 'stds', 'sums', 'lats_pro']
-    features = ['maxes', 'means', 'stds', 'lats_pro']
+    #features = ['maxes', 'means', 'stds', 'lats_pro']
+    features = ['maxes_rel','medians','stds','lats_pro']
     predictor = 'RTs'
 
-    elecs = data_dict['means'].keys()
+    # load data
+    #filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
+    #data_dict = pickle.load(open(filename, 'rb'))
+    data_dict = dict()
+    for j, f in enumerate(features):
+        filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', '_'.join([subj, task, f]) + '.csv') #run on cleaned trials (outliers dropped)
+        df = pd.read_csv(filename)
+        df.columns = [int(x) for x in df.columns]
+        data_dict[f] = dict(df)
+
+    filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', '_'.join([subj, task, predictor]) + '.csv')
+    df = pd.read_csv(filename)
+    df.columns = [int(x) for x in df.columns]
+    data_dict[predictor] = dict(df)    
+
+    all_alphas, all_models, all_scores, all_coefs, all_scores_null, all_pval, all_zcoefs = [[] for i in range(7)]
+    elecs = data_dict['medians'].keys()
 
     for elec in elecs:
 
