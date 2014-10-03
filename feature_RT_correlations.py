@@ -38,7 +38,7 @@ def plot_correlations(to_scale = False):
         #elecs = data_dict['means'].keys()
         big_dict = dict()
         for f in features:
-            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', '_'.join([subj, , task, f + '.csv']))
+            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', '_'.join([subj, task, f + '.csv']))
             df = pd.read_csv(filename)
             elecs = df.columns.values
             big_dict[f] = df
@@ -59,16 +59,16 @@ def plot_correlations(to_scale = False):
             if to_scale == True: #if to normalize features (easier to spot outliers)
                 #means, maxes, lats_pro, stds, RTs = [scale(data_dict[k][e].astype(float)) for k in features]
                 #means, maxes, lats_pro, stds, RTs, maxes_rel = [scale(big_dict[f][e].astype(float)) for f in features]
-                stds, maxes_rel, lats_pro, medians = [scale(big_dict[f][e].astype(float)) for f in features]
+                stds, maxes_rel, lats_pro, medians, RTs = [scale(big_dict[f][e].astype(float)) for f in features]
                 filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', '_'.join([subj, task, 'e'+str(e)+'_scaled.png']))
             else:
                 #means, maxes, lats_pro, stds, RTs = [data_dict[k][e] for k in features]
                 #means, maxes, lats_pro, stds, RTs, maxes_rel = [big_dict[f][e] for f in features]
-                stds, maxes_rel, lats_pro, medians = [big_dict[f][e] for f in features]
+                stds, maxes_rel, lats_pro, medians, RTs = [big_dict[f][e] for f in features]
                 filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', '_'.join([subj, task, 'e'+str(e)+'.png']))
 
             #tmp = pd.DataFrame({'means':means, 'maxes':maxes, 'maxes_rel': maxes_rel, 'lats_pro':lats_pro, 'stds':stds, 'RTs':RTs})
-                tmp = pd.DataFrame({'stds' : stds, 'maxes_rel': maxes_rel, 'lats_pro' : lats_pro , 'medians' : medians})
+            tmp = pd.DataFrame({'stds' : stds, 'maxes_rel': maxes_rel, 'lats_pro' : lats_pro , 'medians' : medians})
 
             f, ax = plt.subplots(figsize = (10, 10))
             scatter_matrix(tmp, ax = ax, grid = True, hist_kwds={'alpha': 0.5})
