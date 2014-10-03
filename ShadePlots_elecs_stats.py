@@ -208,7 +208,7 @@ def shadeplots_elecs_stats():
                 continue
             data = pd.DataFrame(data_dict[k])
         
-            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', '_'.join([subj, task, k]) + '.csv')
+            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', 'orig', '_'.join([subj, task, k]) + '.csv')
             data.to_csv(filename, index = False)
 
     #save dataframe with dropped trials
