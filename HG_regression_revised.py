@@ -29,7 +29,7 @@ def HG_regression_allelecs_SGE(DATASET):
     alpha = np.median(alphas, axis = 1)
 
     data_array = np.hstack([np.asarray(zcoefs), np.reshape(score, (len(score), 1)), np.reshape(np.asarray(pval), (len(pval),1)), np.reshape(alpha, (len(alpha), 1))])
-
+    #NOTE TYPO - zcoefs are actually just the mean values of the coefficients
     features.append('pred_score')
     features.append('pval_predscore')
     features.append('alpha')
@@ -134,7 +134,7 @@ def HG_regression_allelecs(subj, task):
 
         #zscore coefficients, take mean
         zcoefs = stats.zscore(coefs, axis = 0)
-        zcoefs = np.mean(coefs, axis = 0)
+        zcoefs = np.mean(coefs, axis = 0) #NOTE TYPO - ZCOEFS are actually just the mean values of the coefficients
 
         all_alphas.append(alphas)
         all_models.append(models)
