@@ -1,11 +1,7 @@
 setwd('/home/knight/matar/PYTHON/ECOGpy/')
-#library(psych)
 library(proxy)
-#source("R/EFA_Comparison.R")
 library(reshape2)
-#library(ggplot2)
-#library(cluster)
-#library(lattice)
+library(psych)
 
 params = c('maxes_rel', 'lats_pro','medians','stds')
 
@@ -13,7 +9,7 @@ DATADIR = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/Stats/outliers/for_PCA/' #
 
 d = read.table('test.subjects',sep = '_')
 
-for (i in 1:nrow(d) ) {
+for (i in 1:nrow(d)) {
   for (p in params) {
     saveDir = paste('/home/knight/matar/MATLAB/DATA/Avgusta/PCA/Stats/PCA_', p, '/', sep = "")
     
@@ -24,15 +20,21 @@ for (i in 1:nrow(d) ) {
     data = data.matrix(data)
     
     #implement kaiser rule
-    fit = prcomp(data, scale=TRUE, retx = FALSE) #uses correlation matrix, no rotation
-    eigvalues = fit$sdev^2 #(sdev aka signular values, works bc sum of eigvalues = sum total of the variance)
-    num_pcs = sum(eigvalues>1)
+    #fit = prcomp(data, scale=TRUE, retx = FALSE) #uses correlation matrix, no rotation
+    #eigvalues = fit$sdev^2 #(sdev aka signular values, works bc sum of eigvalues = sum total of the variance)
+    #num_pcs = sum(eigvalues>1)
     
-    #write loadings csv
+    num_pcs = dim(data)[2] #start with num pcs == num elecs
+    fit = principal(data, nfactors = num_pcs, rotate='none') #calculate PCA without rotation
+    num_pcs = sum(fit$values>1) #kaiser rule
+    fit = principal(data, nfactors = num_pcs, rotate = 'none', scores = TRUE)
+    
+    #write loadings, scores, summary csv
     filename = paste(saveDir, subj, '_', task, '_loadings.csv',sep = "")
-    write.table(fit$rotation[,1:num_pcs],file = filename, sep =",", row.names=TRUE, col.names = NA)
-    filename = paste(saveDir, subj, '_', task, '_summary.csv',sep = "")
-    write.table(summary(fit)$importance[,1:num_pcs],file = filename, sep =",", row.names = TRUE, col.names = NA)
-  
+    write.table(fit$loadings,file = filename, sep =",", row.names=TRUE, col.names = NA)
+    filename = paste(saveDir, subj, '_', task, '_summary.txt',sep = "")
+    capture.output(print(fit), file = filename)
+    filename = paste(saveDir, subj, '_', task, '_scores.csv', sep = "")
+    write.table(fit$scores, file = filename, sep= ",", row.names = FALSE)
   }
 }

@@ -63,7 +63,7 @@ def shadeplots_clusters_stats_RTsplit():
 
         if any([(pattern == 'S'), (pattern == 'sustained'), (pattern == 'S+sustained')]):
 
-            means, maxes, lats, lats_pro, sums, stds, RTs = [data_dict.get(k) for k in ['means','maxes','lats','lats_pro','sums','stds', 'RTs']]
+            means, maxes, lats, lats_pro, sums, stds, RTs, medians, variations = [data_dict.get(k) for k in ['means','maxes','lats','lats_pro','sums','stds', 'RTs', 'medians','variations']]
 
             #calculate median RT to split trials
             slowidx = np.where(RTs > np.median(RTs))[0]
@@ -81,6 +81,8 @@ def shadeplots_clusters_stats_RTsplit():
             lats_pro_slow = lats_pro[slowidx]
             sums_slow = sums[slowidx]        
             stds_slow = stds[slowidx]
+            medians_slow = medians[slowidx]
+            vars_slow = variations[slowidx]
 
             means_fast = means[fastidx]
             maxes_fast = maxes[fastidx]
@@ -88,6 +90,8 @@ def shadeplots_clusters_stats_RTsplit():
             lats_pro_fast = lats_pro[fastidx]
             sums_fast = sums[fastidx]
             stds_fast = stds[fastidx]
+            medians_fast = medians[fastidx]
+            vars_fast = variations[fastidx]
 
             #calculate ttests
             mean_p_stim.append(stats.ttest_ind(means_slow, means_fast)[1])
@@ -96,6 +100,8 @@ def shadeplots_clusters_stats_RTsplit():
             lat_p_stim.append(stats.ttest_ind(lats_slow, lats_fast)[1])
             sum_p_stim.append(stats.ttest_ind(sums_slow, sums_fast)[1])
             lat_pro_p_stim.append(stats.ttest_ind(lats_pro_slow, lats_pro_fast)[1])
+            medians_p_stim.append(stats.ttest_ind(medians_slow, medians_fast)[1])
+            vars_p_stim.append(stats.ttest_ind(vars_slow, vars_fast)[1])
 
             mean_p_resp.append(np.nan)
             std_p_resp.append(np.nan)
@@ -103,6 +109,8 @@ def shadeplots_clusters_stats_RTsplit():
             sum_p_resp.append(np.nan)
             lat_p_resp.append(np.nan)
             lat_pro_p_resp.append(np.nan)
+            vars_p_resp.append(np.nan)
+            medians_p_resp.append(np.nan)
 
             #calculate mean values for fast vs slow
             mean_slow_mean_stim.append(means_slow.mean())
@@ -121,6 +129,11 @@ def shadeplots_clusters_stats_RTsplit():
             lat_pro_fast_std_stim.append(lats_pro_fast.std())
             lat_slow_std_stim.append(lats_slow.std())
             lat_fast_std_stim.append(lats_fast.std())
+            median_slow_mean_stim.append(medians_slow.mean())
+            median_fast_mean_stim.append(medians_fast.mean())
+            var_slow_mean_stim.append(vars_slow.mean())
+            var_fast_mean_stim.append(vars_fast.mean())
+
 
             mean_slow_mean_resp.append(np.nan)
             mean_fast_mean_resp.append(np.nan)
@@ -138,6 +151,10 @@ def shadeplots_clusters_stats_RTsplit():
             lat_pro_fast_std_resp.append(np.nan)
             lat_slow_std_resp.append(np.nan)
             lat_fast_std_resp.append(np.nan)
+            median_slow_mean_stim.append(medians_slow.mean())
+            median_fast_mean_stim.append(medians_fast.mean())
+            var_slow_mean_stim.append(vars_slow.mean())
+            var_fast_mean_stim.append(vars_fast.mean())
 
             subjs.append(subj)
             tasks.append(task)
@@ -146,15 +163,15 @@ def shadeplots_clusters_stats_RTsplit():
 
             #save stats (single trials)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'significance_windows', 'RTsplit', ''.join([subj, '_', task, '_c', str(cluster), '.p']))
-            keys = ['subj','task','pattern','RTs','lats_pro_slow','lats_pro_fast','sums_slow','sums_fast','means_slow','means_fast','maxes_slow','maxes_fast','lats_slow','lats_fast','stds_slow','stds_fast']
-            values = [subj,task, pattern, RTs, lats_pro_slow, lats_pro_fast, sums_slow, sums_fast, means_slow, means_fast, maxes_slow, maxes_fast, lats_slow, lats_fast, stds_slow, stds_fast]
+            keys = ['subj','task','pattern','RTs','lats_pro_slow','lats_pro_fast','sums_slow','sums_fast','means_slow','means_fast','maxes_slow','maxes_fast','lats_slow','lats_fast','stds_slow','stds_fast', 'medians_slow','medians_fast','vars_slow','vars_fast']
+            values = [subj,task, pattern, RTs, lats_pro_slow, lats_pro_fast, sums_slow, sums_fast, means_slow, means_fast, maxes_slow, maxes_fast, lats_slow, lats_fast, stds_slow, stds_fast, medians_slow, medians_fast, vars_slow, vars_fast]
             data_dict = dict(zip(keys, values))
             with open(filename, 'w') as f:
                 pickle.dump(data_dict, f)
                 f.close()
 
         if pattern == 'R':
-            means, maxes, lats, sums, stds, lats_pro, RTs = [data_dict.get(k) for k in ['means','maxes','lats','sums','stds', 'lats_pro', 'RTs']]
+            means, maxes, lats, sums, stds, lats_pro, RTs, medians, variations = [data_dict.get(k) for k in ['means','maxes','lats','sums','stds', 'lats_pro', 'RTs', 'medians', 'variations']]
 
             #calculate median RT to split trials
             slowidx = np.where(RTs > np.median(RTs))[0]
@@ -172,6 +189,8 @@ def shadeplots_clusters_stats_RTsplit():
             lats_pro_slow = lats_pro[slowidx]
             sums_slow = sums[slowidx]        
             stds_slow = stds[slowidx]
+            medians_slow = medians[slowidx]
+            vars_slow = variations[slowidx]
 
             means_fast = means[fastidx]
             maxes_fast = maxes[fastidx]
@@ -179,6 +198,8 @@ def shadeplots_clusters_stats_RTsplit():
             lats_pro_fast = lats_pro[fastidx]
             sums_fast = sums[fastidx]
             stds_fast = stds[fastidx]
+            medians_fast = medians[fastidx]
+            vars_fast = variations[fastidx]
 
             #calculate ttests
             mean_p_resp.append(stats.ttest_ind(means_slow, means_fast)[1])
@@ -187,6 +208,8 @@ def shadeplots_clusters_stats_RTsplit():
             lat_p_resp.append(stats.ttest_ind(lats_slow, lats_fast)[1])
             sum_p_resp.append(stats.ttest_ind(sums_slow, sums_fast)[1])
             lat_pro_p_resp.append(stats.ttest_ind(lats_pro_slow, lats_pro_fast)[1])
+            median_p_resp.append(stats.ttest_ind(medians_slow, medians_fast)[1])
+            var_p_resp.append(stats.ttest_ind(vars_slow, vars_fast)[1])
 
             mean_p_stim.append(np.nan)
             std_p_stim.append(np.nan)
@@ -194,6 +217,8 @@ def shadeplots_clusters_stats_RTsplit():
             sum_p_stim.append(np.nan)
             lat_p_stim.append(np.nan)
             lat_pro_p_stim.append(np.nan)
+            median_p_stim.append(np.nan)
+            var_p_stim.append(np.nan)
 
             #calculate mean values for fast vs slow
             mean_slow_mean_resp.append(means_slow.mean())
@@ -212,6 +237,10 @@ def shadeplots_clusters_stats_RTsplit():
             lat_pro_fast_std_resp.append(lats_pro_fast.std())
             lat_slow_std_resp.append(lats_slow.std())
             lat_fast_std_resp.append(lats_fast.std())
+            median_slow_mean_resp.append(medians_slow.mean())
+            median_fast_mean_resp.append(medians_fast.mean())
+            var_slow_mean_resp.append(vars_slow.mean())
+            var_fast_mean_resp.append(vars_fast.mean())
 
             mean_slow_mean_stim.append(np.nan)
             mean_fast_mean_stim.append(np.nan)
@@ -229,6 +258,10 @@ def shadeplots_clusters_stats_RTsplit():
             lat_pro_fast_std_stim.append(np.nan)
             lat_slow_std_stim.append(np.nan)
             lat_fast_std_stim.append(np.nan)
+            median_slow_mean_stim.append(np.nan)
+            median_fast_mean_stim.append(np.nan)
+            var_slow_mean_stim.append(np.nan)
+            var_fast_mean_stim.append(np.nan)
 
             subjs.append(subj)
             tasks.append(task)
@@ -237,8 +270,8 @@ def shadeplots_clusters_stats_RTsplit():
 
             #save stats (single trials)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'significance_windows', 'RTsplit', ''.join([subj, '_', task, '_c', str(cluster), '.p']))
-            keys = ['subj','task','pattern','RTs','lats_pro_slow','lats_pro_fast','sums_slow','sums_fast','means_slow','means_fast','maxes_slow','maxes_fast','lats_slow','lats_fast','stds_slow','stds_fast']
-            values = [subj,task, pattern, RTs, lats_pro_slow, lats_pro_fast, sums_slow, sums_fast, means_slow, means_fast, maxes_slow, maxes_fast, lats_slow, lats_fast, stds_slow, stds_fast]
+            keys = ['subj','task','pattern','RTs','lats_pro_slow','lats_pro_fast','sums_slow','sums_fast','means_slow','means_fast','maxes_slow','maxes_fast','lats_slow','lats_fast','stds_slow','stds_fast', 'medians_slow','medians_fast','vars_slow','vars_fast']
+            values = [subj,task, pattern, RTs, lats_pro_slow, lats_pro_fast, sums_slow, sums_fast, means_slow, means_fast, maxes_slow, maxes_fast, lats_slow, lats_fast, stds_slow, stds_fast, medians_slow, medians_fast, vars_slow, vars_fast]
             data_dict = dict(zip(keys, values))
             
             with open(filename, 'w') as f:

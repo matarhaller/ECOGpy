@@ -10,7 +10,7 @@ from scipy import stats
 
 def shadeplots_elecs_stats():
     """ 
-    calculates mean, peak, latency, and std per trial for all electrodes in an active cluster
+    calculates mean, peak, latency, and std per trial for all electrodes in an active cluster - added medians and coefficient of variation and mins
     uses windows for individual electrodes from PCA/Stats/single_electrode_windows_withdesignation.csv
     saves pickle file with numbers per trial in ShadePlots_hclust/elecs/significance_windows
     """
@@ -32,7 +32,7 @@ def shadeplots_elecs_stats():
         bl_st = bl_st/1000*srate
         #sys.stdout.flush()
 
-        maxes_rel, medians, means, stds, maxes, lats, sums, lats_pro, RTs, num_dropped = [dict() for i in range(10)]
+        cofvar, maxes_rel, medians, means, stds, maxes, lats, sums, lats_pro, RTs, num_dropped, mins, lats_min = [dict() for i in range(13)]
         
         RT = RT + abs(bl_st) #RTs are calculated from stim onset, need to account for bl in HG_elecMTX_percent
 
@@ -57,6 +57,8 @@ def shadeplots_elecs_stats():
                 stds[elec] = data[:,start_idx:end_idx].std(axis = 1)
                 maxes[elec] = data[:,start_idx:end_idx].max(axis = 1)
                 lats[elec] = data[:,start_idx:end_idx].argmax(axis = 1)
+                lats_min[elec] = data[:, start_idx:end_idx].argmin(axis = 1)
+
                 sums[elec] = data[:, start_idx:end_idx].sum(axis = 1)
                 lats_pro[elec] = lats[elec] / len(np.arange(start_idx, end_idx))
                 RTs[elec] = RT
@@ -64,6 +66,8 @@ def shadeplots_elecs_stats():
 
                 medians[elec] = stats.nanmedian(data[:,start_idx:end_idx], axis = 1)
                 maxes_rel[elec] = maxes[elec]-means[elec]
+                cofvar[elec] = stds[elec]/means[elec]
+                mins[elec] = data[:,start_idx:end_idx].min(axis = 1)
 
                 #update dataframe
                 ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
@@ -103,6 +107,8 @@ def shadeplots_elecs_stats():
 
                     medians[elec] = stats.nanmedian(data_resp, axis = 1)
                     maxes_rel[elec] = maxes[elec]-means[elec]
+                    cofvar[elec] = stds[elec]/means[elec]
+                    mins[elec] = np.nanmin(data_resp, axis = 1)
 
                     data_resp[nanidx,0] = -999
                     tmp_lat = np.nanargmax(data_resp, axis = 1)
@@ -110,6 +116,12 @@ def shadeplots_elecs_stats():
                     tmp_lat[nanidx] = np.nan
                     lats[elec] = tmp_lat
                     lats_pro[elec] = tmp_lat / np.sum(~np.isnan(data_resp), axis = 1)
+
+                    data_resp[nanidx,0] = 9999
+                    tmp_lat = np.nanargmin(data_resp, axis = 1)
+                    tmp_lat = np.ndarray.astype(tmp_lat, dtype = float)
+                    tmp_lat[nanidx] = np.nan
+                    lats_min[elec] = tmp_lat
 
                     tmp_RT = np.ndarray.astype(RT, dtype = float)
                     tmp_RT[nanidx] = np.nan
@@ -119,15 +131,19 @@ def shadeplots_elecs_stats():
                     num_to_drop = 0
                     num_dropped[elec] = num_to_drop
                     lats[elec] = np.nanargmax(data_resp, axis = 1)
+                    lats_min[elec] = np.nanargmin(data_resp, axis = 1)
+
                     lats_pro[elec] = np.nanargmax(data_resp, axis = 1) / np.sum(~np.isnan(data_resp), axis = 1)
                     RTs[elec] = RT
                     means[elec] = np.nanmean(data_resp, axis = 1)
                     stds[elec] = np.nanstd(data_resp, axis = 1)
                     maxes[elec] = np.nanmax(data_resp, axis = 1)
                     sums[elec] = np.nansum(data_resp, axis = 1)
+                    mins[elec] = np.nanmin(data_resp, axis = 1)
 
                     medians[elec] = stats.nanmedian(data_resp, axis = 1)
                     maxes_rel[elec] = maxes[elec] - means[elec]
+                    cofvar[elec] = stds[elec]/means[elec]
 
                 #update dataframe
                 ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
@@ -164,6 +180,8 @@ def shadeplots_elecs_stats():
 
                     medians[elec] = stats.nanmedian(data_dur, axis = 1)
                     maxes_rel[elec] = maxes[elec] - means[elec]
+                    cofvar[elec] = stds[elec]/means[elec]
+                    mins[elec] = np.nanmin(data_dur, axis = 1)
 
                     data_dur[nanidx,0] = -999
                     tmp_lat = np.nanargmax(data_dur, axis = 1)
@@ -171,6 +189,12 @@ def shadeplots_elecs_stats():
                     tmp_lat[nanidx] = np.nan
                     lats[elec] = tmp_lat
                     lats_pro[elec] = tmp_lat / np.sum(~np.isnan(data_dur), axis = 1)
+
+                    data_dur[nanidx, 0] = 9999
+                    tmp_lat = np.nanargmin(data_dur, axis = 1)
+                    tmp_lat = np.ndarray.astype(tmp_lat, dtype = float)
+                    tmp_lat[nanidx] = np.nan
+                    lats_min[elec] = tmp_lat
 
                     tmp_RT = np.ndarray.astype(RT, dtype = float)
                     tmp_RT[nanidx] = np.nan
@@ -185,8 +209,11 @@ def shadeplots_elecs_stats():
 
                     medians[elec] = stats.nanmedian(data_dur, axis = 1)
                     maxes_rel[elec] = maxes[elec] - means[elec]
+                    cofvar[elec] = stds[elec]/means[elec]
+                    mins[elec] = np.nanmin(data_dur, axis = 1)
 
                     lats[elec] = np.nanargmax(data_dur, axis = 1)
+                    lats_min[elec] = np.nanargmin(data_dur, axis = 1)
                     lats_pro[elec] = np.nanargmax(data_dur, axis = 1) / np.sum(~np.isnan(data_dur), axis = 1)
                     RTs[elec] = RT
 
@@ -196,7 +223,7 @@ def shadeplots_elecs_stats():
 
         #save stats (single trials)
         filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
-        data_dict = {'active_elecs': active_elecs, 'lats_pro': lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st,'RTs':RTs, 'dropped':num_dropped, 'maxes_rel' : maxes_rel, 'medians' : medians}
+        data_dict = {'active_elecs': active_elecs, 'lats_pro': lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st,'RTs':RTs, 'dropped':num_dropped, 'maxes_rel' : maxes_rel, 'medians' : medians, 'variations': cofvar, 'mins': mins, 'lats_min':lats_min}
 
         with open(filename, 'w') as f:
             pickle.dump(data_dict, f)

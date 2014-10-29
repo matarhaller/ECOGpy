@@ -17,20 +17,30 @@ def HG_regression_allelecs_SGE(DATASET):
     """
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     subj, task = DATASET.split('_')
-    
-    reg_dict = HG_regression_allelecs(subj, task)
 
-    filename = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', '_'.join([subj, task]))
+    static = False
+    
+    reg_dict = HG_regression_allelecs(subj, task, static = static)
+    
+    if static:
+        filename = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'static', '_'.join([subj, task]))
+    else:
+        filename = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'with_mins', '_'.join([subj, task]))
 
     pickle.dump(reg_dict, open(filename + '.p', 'wb'))
     
     elecs, alphas, scores, zcoefs, pval, features  = [reg_dict[key] for key in ['elecs','alphas','scores', 'zcoefs', 'pval', 'features']]
     score = np.median(scores, axis = 1)
     alpha = np.median(alphas, axis = 1)
+    ci_low, ci_high = np.percentile(scores, [5, 95], axis = 1)
 
-    data_array = np.hstack([np.asarray(zcoefs), np.reshape(score, (len(score), 1)), np.reshape(np.asarray(pval), (len(pval),1)), np.reshape(alpha, (len(alpha), 1))])
+    #features = features.tolist() #used of get features from columns of dataframe. not relevant since dropped stds
+
+    data_array = np.hstack([np.asarray(zcoefs), np.reshape(score, (len(score), 1)), np.reshape(ci_low, (len(ci_low),1)), np.reshape(ci_high, (len(ci_high),1)), np.reshape(np.asarray(pval), (len(pval),1)), np.reshape(alpha, (len(alpha), 1))])
     #NOTE TYPO - zcoefs are actually just the mean values of the coefficients
     features.append('pred_score')
+    features.append('ci_low pred score')
+    features.append('ci_high pred score')
     features.append('pval_predscore')
     features.append('alpha')
 
@@ -38,10 +48,10 @@ def HG_regression_allelecs_SGE(DATASET):
 
     df.to_csv(filename + '_coefs.csv')
 
-    #plot_figures(subj, task, reg_dict)
+    #plot_figures(subj, task, reg_dict, static)
     
 
-def HG_regression_allelecs(subj, task): 
+def HG_regression_allelecs(subj, task, static = True): 
     '''
     Runs ridge regression on maxes, means, stds, sums, latency (proportion) data for a subj/task
     Loops on each electrode
@@ -54,15 +64,10 @@ def HG_regression_allelecs(subj, task):
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     reg_dict = dict()
 
-    #set parameters
-    #features = ['maxes', 'means', 'stds', 'sums', 'lats_pro']
-    #features = ['maxes', 'means', 'stds', 'lats_pro']
-    features = ['maxes_rel','medians','stds','lats_pro']
-    predictor = 'RTs'
-
+    ''''
     # load data
-    #filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
-    #data_dict = pickle.load(open(filename, 'rb'))
+    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
+    data_dict = pickle.load(open(filename, 'rb'))
     data_dict = dict()
     for j, f in enumerate(features):
         filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', '_'.join([subj, task, f]) + '.csv') #run on cleaned trials (outliers dropped)
@@ -74,12 +79,32 @@ def HG_regression_allelecs(subj, task):
     df = pd.read_csv(filename)
     df.columns = [int(x) for x in df.columns]
     data_dict[predictor] = dict(df)    
+    '''
+    
+    if static:
+        filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'static', '_'.join([subj, task]))
+    else:
+        filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'with_mins', '_'.join([subj, task])) #WITH MINS
+
+    data_dict = pickle.load( open(filename+'.p', "rb" )) # keys: elecs, values: dataframe of trials x features
+    
+    elecs = data_dict.keys()
+    colnames = list(data_dict[elecs[0]].columns)
+    predictor = colnames.pop(colnames.index('RTs'))
+    features = colnames
+
+    #drop stds from features
+    #features = ['maxes_rel', 'medians','lats_pro']
 
     all_alphas, all_models, all_scores, all_coefs, all_scores_null, all_pval, all_zcoefs = [[] for i in range(7)]
-    elecs = data_dict['medians'].keys()
 
     for elec in elecs:
 
+        #define data (NaNs already dropped)
+        X = np.array(data_dict[elec][features])
+        Y = np.array(data_dict[elec][predictor])
+
+        '''
         #define data
         X = np.array([data_dict[x][elec] for x in features]).T
         Y = data_dict[predictor][elec]
@@ -89,6 +114,7 @@ def HG_regression_allelecs(subj, task):
         X = X[~mask]
         mask = np.isnan(Y)
         Y = Y[~mask]        
+        '''
 
         #split data into training and test sets for the number of CV folds
         cvs = cross_validation.ShuffleSplit(len(Y), n_iter = 1000, test_size = 0.2)
@@ -133,7 +159,7 @@ def HG_regression_allelecs(subj, task):
             pval = 1
 
         #zscore coefficients, take mean
-        zcoefs = stats.zscore(coefs, axis = 0)
+        #zcoefs = stats.zscore(coefs, axis = 0)
         zcoefs = np.mean(coefs, axis = 0) #NOTE TYPO - ZCOEFS are actually just the mean values of the coefficients
 
         all_alphas.append(alphas)
@@ -159,11 +185,16 @@ def HG_regression_allelecs(subj, task):
 
     return reg_dict
 
-def plot_figures(subj, task, reg_dict):
+def plot_figures(subj, task, reg_dict, static):
     
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
 
     elecs, alphas, scores, zcoefs, pval, scores_null, coefs, features  = [reg_dict[key] for key in ['elecs','alphas','scores', 'zcoefs', 'pval', 'scores_null', 'coefs', 'features']]
+
+    if static:
+        saveDir = os.path.join(SJdir, 'PCA','Stats','Regression','static')
+    else:
+        saveDir = os.path.join(SJdir, 'PCA','Stats', 'Regression')
 
     for elec in elecs:
         idx = np.where(np.in1d(elecs, elec))[0][0]
@@ -180,7 +211,7 @@ def plot_figures(subj, task, reg_dict):
         ax.set_xticklabels(['%.2f' %x for x in sorted_keys])
         ax.set_title('%s %s - e%i - distribution of alphas' %(subj, task, elec))
 
-        plotname = os.path.join(SJdir, 'PCA','Stats','Regression', '_'.join([subj, task, str(elec), 'alpha_distribution.png']))
+        plotname = os.path.join(saveDir, '_'.join([subj, task, str(elec), 'alpha_distribution.png']))
         plt.savefig(plotname)
         plt.close()
 
@@ -190,7 +221,7 @@ def plot_figures(subj, task, reg_dict):
         ax.hist(scores_null[idx], color = 'r', alpha = 0.5)
         ax.set_title('%s %s - e%i - distribution of scores, p =  %.3f' %(subj, task, elec, pval[idx]))
 
-        plotname = os.path.join(SJdir, 'PCA','Stats','Regression', '_'.join([subj, task, str(elec), 'score_distribution.png']))
+        plotname = os.path.join(saveDir, '_'.join([subj, task, str(elec), 'score_distribution.png']))
         plt.savefig(plotname)
         plt.close()
 
@@ -202,7 +233,7 @@ def plot_figures(subj, task, reg_dict):
             ax[j].set_title(x)
         f.suptitle('%s %s - e%i - coefficients' %(subj, task, elec))
 
-        plotname = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', '_'.join([subj, task, str(elec), 'coefficients.png']))
+        plotname = os.path.join(saveDir, '_'.join([subj, task, str(elec), 'coefficients.png']))
         plt.savefig(plotname)
         plt.close()
 

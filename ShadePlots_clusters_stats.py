@@ -4,10 +4,11 @@ import os
 import numpy as np
 import sys
 import cPickle as pickle
+from scipy import stats
 
 def shadeplots_clusters_stats():
     """ 
-    calculates mean, peak, latency, and std per trial
+    calculates mean, peak, latency, and std per trial - ADDING medians, coefficient of variations, relative maxes
     saves pickle file with numbers per trial in ShadePlots_hclust/significance_windows
     """
 
@@ -25,6 +26,8 @@ def shadeplots_clusters_stats():
     sum_activity_stim = list(); sum_activity_resp = list()
     lat_activity_stim = list(); lat_activity_resp = list()
     lat_pro_activity_stim = list(); lat_pro_activity_resp = list()
+    median_activity_stim = list(); median_activity_resp = list()
+    var_activity_stim = list(); var_activity_resp = list()
 
 
     for row in df.itertuples():
@@ -51,6 +54,8 @@ def shadeplots_clusters_stats():
             lats = cdata[:,start_idx:end_idx].argmax(axis = 1)
             sums = cdata[:, start_idx:end_idx].sum(axis = 1)
             lats_pro = lats / len(np.arange(start_idx, end_idx))
+            cofvars = stds/means
+            medians = np.median(cdata[:, start_idx:end_idx], axis = 1)
 
             #calculate mean stats
             mean_activity_stim.append(means.mean())
@@ -59,6 +64,8 @@ def shadeplots_clusters_stats():
             lat_activity_stim.append(lats.mean())
             sum_activity_stim.append(sums.mean())
             lat_pro_activity_stim.append(lats_pro.mean())
+            var_activity_stim.append(cofvars.mean())
+            median_activity_stim.append(medians.mean())
 
             mean_activity_resp.append(np.nan)
             std_activity_resp.append(np.nan)
@@ -66,6 +73,8 @@ def shadeplots_clusters_stats():
             lat_activity_resp.append(np.nan)
             sum_activity_resp.append(np.nan)
             lat_pro_activity_resp.append(np.nan)
+            var_activity_resp.append(np.nan)
+            median_activity_resp.append(np.nan)
 
             subjs.append(subj)
             tasks.append(task)
@@ -74,7 +83,7 @@ def shadeplots_clusters_stats():
 
             #save stats (single trials)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'significance_windows', ''.join([subj, '_', task, '_c', str(cluster), '.p']))
-            data_dict = {'pattern':pattern, 'lats_pro': lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'cdata': cdata, 'start_idx': start_idx, 'end_idx':end_idx, 'srate': srate, 'bl_st':bl_st,'RTs':RTs}
+            data_dict = {'pattern':pattern, 'lats_pro': lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'cdata': cdata, 'start_idx': start_idx, 'end_idx':end_idx, 'srate': srate, 'bl_st':bl_st,'RTs':RTs, 'covars':cofvars, 'medians': medians}
 
             with open(filename, 'w') as f:
                 pickle.dump(data_dict, f)
@@ -99,6 +108,8 @@ def shadeplots_clusters_stats():
             lats = cdata_resp[:,start_idx_resp:end_idx_resp].argmax(axis = 1)
             sums = cdata_resp[:, start_idx_resp:end_idx_resp].sum(axis = 1)
             lats_pro = lats / len(np.arange(start_idx_resp, end_idx_resp))
+            cofvars = stds/means
+            medians = np.median(cdata[:, start_idx_resp:end_idx_resp], axis = 1)
 
             #calculate mean stats
             mean_activity_resp.append(means.mean())
@@ -107,6 +118,8 @@ def shadeplots_clusters_stats():
             lat_activity_resp.append(lats.mean())
             sum_activity_resp.append(sums.mean())
             lat_pro_activity_resp.append(lats_pro.mean())
+            var_activity_resp.append(cofvars.mean())
+            median_activity_resp.append(medians.mean())
 
             mean_activity_stim.append(np.nan)
             std_activity_stim.append(np.nan)
@@ -114,6 +127,8 @@ def shadeplots_clusters_stats():
             lat_activity_stim.append(np.nan)
             sum_activity_stim.append(np.nan)
             lat_pro_activity_stim.append(np.nan)
+            var_activity_stim.append(np.nan)
+            median_activity_stim.append(np.nan)
 
             subjs.append(subj)
             tasks.append(task)
@@ -122,7 +137,7 @@ def shadeplots_clusters_stats():
 
             #save stats (single trials)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'significance_windows', ''.join([subj, '_', task, '_c', str(cluster), '.p']))
-            data_dict = {'pattern':pattern, 'lats_pro':lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'cdata_resp': cdata_resp, 'start_idx_resp': start_idx_resp, 'end_idx_resp':end_idx_resp, 'st_resp': st_resp, 'en_resp':en_resp, 'RTs':RTs, 'srate': srate, 'bl_st':bl_st}
+            data_dict = {'pattern':pattern, 'lats_pro':lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'cdata_resp': cdata_resp, 'start_idx_resp': start_idx_resp, 'end_idx_resp':end_idx_resp, 'st_resp': st_resp, 'en_resp':en_resp, 'RTs':RTs, 'srate': srate, 'bl_st':bl_st, 'cofvars':cofvars, 'medians':medians}
 
             with open(filename, 'w') as f:
                 pickle.dump(data_dict, f)
@@ -156,6 +171,8 @@ def shadeplots_clusters_stats():
             lats_stim = cdata[:,start_idx:end_idx].argmax(axis = 1)
             sums_stim = cdata[:, start_idx:end_idx].sum(axis = 1)
             lats_pro_stim = lats_stim / len(np.arange(start_idx, end_idx))
+            cofvars_stim = stds_stim/means_stim
+            medians_stim = np.median(cdata[:, start_idx:end_idx], axis = 1)
 
             means_resp = cdata_resp[:,start_idx_resp:end_idx_resp].mean(axis = 1)
             stds_resp = cdata_resp[:,start_idx_resp:end_idx_resp].std(axis = 1)
@@ -163,6 +180,8 @@ def shadeplots_clusters_stats():
             lats_resp = cdata_resp[:,start_idx_resp:end_idx_resp].argmax(axis = 1)
             sums_resp = cdata_resp[:, start_idx_resp:end_idx_resp].sum(axis = 1)
             lats_pro_resp = lats_resp / len(np.arange(start_idx_resp, end_idx_resp))
+            cofvars_resp = stds_resp/means_resp
+            medians_resp = np.median(cdata[:, start_idx_resp:end_idx_resp], axis = 1)
 
             #calculate mean stats
             mean_activity_stim.append(means_stim.mean())
@@ -171,6 +190,8 @@ def shadeplots_clusters_stats():
             lat_activity_stim.append(lats_stim.mean())
             sum_activity_stim.append(sums_stim.mean())
             lat_pro_activity_stim.append(lats_pro_stim.mean())
+            var_activity_stim.append(cofvars_stim.mean())
+            median_activity_stim.append(medians_stim.mean())
 
             mean_activity_resp.append(means_resp.mean())
             std_activity_resp.append(stds_resp.mean())
@@ -178,6 +199,8 @@ def shadeplots_clusters_stats():
             lat_activity_resp.append(lats_resp.mean())
             sum_activity_resp.append(sums_resp.mean())
             lat_pro_activity_resp.append(lats_pro_resp.mean())
+            var_activity_resp.append(cofvars_resp.mean())
+            median_activity_resp.append(medians_resp.mean())
 
             subjs.append(subj)
             tasks.append(task)
@@ -186,7 +209,7 @@ def shadeplots_clusters_stats():
 
             #save stats (single trials)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'significance_windows', ''.join([subj, '_', task, '_c', str(cluster), '.p']))
-            data_dict = {'pattern':pattern,'lats_pro_stim':lats_pro_stim, 'lats_pro_resp':lats_pro_resp, 'sums_stim':sums_stim, 'sums_resp':sums_resp, 'means_stim':means_stim, 'means_resp':means_resp, 'stds_stim':stds_stim,'stds_resp':stds_resp, 'maxes_stim':maxes_stim, 'maxes_resp':maxes_resp, 'lats_stim':lats_stim, 'lats_resp':lats_resp, 'cdata_resp': cdata_resp, 'start_idx_resp': start_idx_resp, 'end_idx_resp':end_idx_resp, 'st_resp': st_resp, 'en_resp':en_resp, 'RTs':RTs, 'srate': srate, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx}
+            data_dict = {'pattern':pattern,'lats_pro_stim':lats_pro_stim, 'lats_pro_resp':lats_pro_resp, 'sums_stim':sums_stim, 'sums_resp':sums_resp, 'means_stim':means_stim, 'means_resp':means_resp, 'stds_stim':stds_stim,'stds_resp':stds_resp, 'maxes_stim':maxes_stim, 'maxes_resp':maxes_resp, 'lats_stim':lats_stim, 'lats_resp':lats_resp, 'cdata_resp': cdata_resp, 'start_idx_resp': start_idx_resp, 'end_idx_resp':end_idx_resp, 'st_resp': st_resp, 'en_resp':en_resp, 'RTs':RTs, 'srate': srate, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx, 'cofvars_stim':cofvars_stim, 'cofvars_resp':cofvars_resp, 'medians_stim':medians_stim, 'medians_resp':medians_resp}
 
             with open(filename, 'w') as f:
                 pickle.dump(data_dict, f)
@@ -235,6 +258,8 @@ def shadeplots_clusters_stats():
             lats_resp = np.nanargmax(cdata_dur_resp, axis = 1)
             lats_pro_stim = np.nanargmax(cdata_dur_stim, axis = 1) / np.sum(~np.isnan(cdata_dur_stim), axis = 1)
             lats_pro_resp = np.nanargmax(cdata_dur_resp, axis = 1) / np.sum(~np.isnan(cdata_dur_resp), axis = 1)
+            medians = stats.nanmedian(cdata_dur_stim, axis = 1)
+            cofvars = stds/means
 
             #calculate mean stats
             mean_activity_stim.append(np.nanmean(means))
@@ -246,10 +271,15 @@ def shadeplots_clusters_stats():
             lat_pro_activity_stim.append(np.nanmean(lats_pro_stim))
             lat_pro_activity_resp.append(np.nanmean(lats_pro_resp))
 
+            median_activity_stim.append(np.nanmean(medians))
+            var_activity_stim.append(np.nanmean(cofvars))
+
             mean_activity_resp.append(np.nan)
             std_activity_resp.append(np.nan)
             max_activity_resp.append(np.nan)
             sum_activity_resp.append(np.nan)
+            median_activity_resp.append(np.nan)
+            var_activity_resp.append(np.nan)
 
             subjs.append(subj)
             tasks.append(task)
@@ -258,13 +288,13 @@ def shadeplots_clusters_stats():
 
             #save stats (single trials)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'significance_windows', ''.join([subj, '_', task, '_c', str(cluster), '.p']))
-            data_dict = {'lats_pro_stim': lats_pro_stim, 'lats_pro_resp':lats_pro_resp, 'pattern':pattern, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats_stim':lats_stim, 'lats_resp':lats_resp, 'cdata_dur_resp': cdata_dur_resp, 'end_idx_resp':end_idx_resp, 'st_resp': st_resp, 'en_resp':en_resp, 'RTs':RTs, 'srate': srate, 'bl_st':bl_st,'start_idx':start_idx, 'cdata_dur_stim':cdata_dur_stim}
+            data_dict = {'lats_pro_stim': lats_pro_stim, 'lats_pro_resp':lats_pro_resp, 'pattern':pattern, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats_stim':lats_stim, 'lats_resp':lats_resp, 'cdata_dur_resp': cdata_dur_resp, 'end_idx_resp':end_idx_resp, 'st_resp': st_resp, 'en_resp':en_resp, 'RTs':RTs, 'srate': srate, 'bl_st':bl_st,'start_idx':start_idx, 'cdata_dur_stim':cdata_dur_stim, 'medians':medians, 'cofvars':cofvars}
             with open(filename, 'w') as f:
                 pickle.dump(data_dict, f)
                 f.close()
 
-    keys = ['subj','task','cluster','pattern','mean_activity_stim','mean_activity_resp','std_activity_stim','std_activity_resp','max_activity_stim','max_activity_resp','sum_activity_stim','sum_activity_resp','lat_activity_stim','lat_activity_resp', 'lat_pro_activity_stim', 'lat_pro_activity_resp']
-    values = [subjs, tasks, clusts, patterns, mean_activity_stim, mean_activity_resp, std_activity_stim, std_activity_resp, max_activity_stim, max_activity_resp, sum_activity_stim, sum_activity_resp, lat_activity_stim, lat_activity_resp, lat_pro_activity_stim, lat_pro_activity_resp]
+    keys = ['subj','task','cluster','pattern','mean_activity_stim','mean_activity_resp','std_activity_stim','std_activity_resp','max_activity_stim','max_activity_resp','sum_activity_stim','sum_activity_resp','lat_activity_stim','lat_activity_resp', 'lat_pro_activity_stim', 'lat_pro_activity_resp', 'median_activity_stim','median_activity_resp','var_activity_stim','var_activity_resp']
+    values = [subjs, tasks, clusts, patterns, mean_activity_stim, mean_activity_resp, std_activity_stim, std_activity_resp, max_activity_stim, max_activity_resp, sum_activity_stim, sum_activity_resp, lat_activity_stim, lat_activity_resp, lat_pro_activity_stim, lat_pro_activity_resp, median_activity_stim, median_activity_resp, var_activity_stim, var_activity_resp]
     activity_stats = dict(zip(keys, values))
 
     filename = os.path.join(SJdir,'PCA','ShadePlots_hclust', 'significance_windows', 'significance_windows_stats.p')

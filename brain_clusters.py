@@ -209,7 +209,7 @@ def plot_xy_map(weights, locs=None, im_path=None, ecog=None,  szmult=2000, color
     Note that this uses dataframes so that we make sure indexing is correct with the electrodes.
     '''
     # Make sure we've specified a thing to plot
-    assert len(weights.squeeze().shape) == 1, 'Weights have more than one column'
+    #assert len(weights.squeeze().shape) == 1, 'Weights have more than one column'
     assert weights.index.nlevels == 1, 'Index must have a single level (electrodes)'
     if locs is None and im_path is None:
         try:
