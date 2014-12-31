@@ -14,21 +14,37 @@ import matplotlib.pyplot as plt
 def HG_regression_allelecs_SGE(DATASET):
     """
     feeds in subj/task to HG_regression_all_elecs and saves output to file
+    *** edited to use unsmoothed data 12/11/14 ***
+    *** added surrogate 12/12/14
     """
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     subj, task = DATASET.split('_')
 
     static = False
-    
-    reg_dict = HG_regression_allelecs(subj, task, static = static)
+    surrogate = False
+    ID = 60 
+
+    folder = 'stds_only'
+
+    reg_dict = HG_regression_allelecs(subj, task, surrogate = surrogate, id_num = ID, static = static, folder = folder)
     
     if static:
-        filename = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'static', '_'.join([subj, task]))
+        saveDir = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'static')
     else:
-        filename = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'with_mins', '_'.join([subj, task]))
+        saveDir = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'unsmoothed', folder, 'no_short_windows')
+
+    if surrogate:
+        saveDir = os.path.join(saveDir, 'surr_' + str(ID))
+        filename = os.path.join(saveDir, '_'.join([subj, task, 'surr']))
+        if not(os.path.exists(saveDir)):
+            os.mkdir(saveDir)
+        else:
+            print(' %s\n already exists!\n' %(saveDir))
+    else:
+        filename = os.path.join(saveDir, '_'.join([subj, task]))
 
     pickle.dump(reg_dict, open(filename + '.p', 'wb'))
-    
+
     elecs, alphas, scores, zcoefs, pval, features  = [reg_dict[key] for key in ['elecs','alphas','scores', 'zcoefs', 'pval', 'features']]
     score = np.median(scores, axis = 1)
     alpha = np.median(alphas, axis = 1)
@@ -46,12 +62,18 @@ def HG_regression_allelecs_SGE(DATASET):
 
     df = pd.DataFrame(data_array, columns = features, index = elecs)
 
-    df.to_csv(filename + '_coefs.csv')
-
+    if surrogate:
+        filename = os.path.join(saveDir, '_'.join([subj, task]) + '_coefs_surr.csv')
+        print('saving surrogate data to\n%s' %(filename))
+        sys.stdout.flush()
+        df.to_csv(filename)
+    else:
+        df.to_csv(filename + '_coefs.csv')
+    
     #plot_figures(subj, task, reg_dict, static)
     
 
-def HG_regression_allelecs(subj, task, static = True): 
+def HG_regression_allelecs(subj, task, surrogate = False, id_num = 99, static = False, folder = 'tmp'):
     '''
     Runs ridge regression on maxes, means, stds, sums, latency (proportion) data for a subj/task
     Loops on each electrode
@@ -60,41 +82,27 @@ def HG_regression_allelecs(subj, task, static = True):
     Gets best model, best coefficients, best score
     Calculates a null prediction score by predicting shuffled test set
     Outputs dictionary of lists of coefficients, prediction scores, models, null prediction scores for each duration electrode
+    surrogate is True/False. If True, then uses id_num to save in correct surrogate directory
     '''
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     reg_dict = dict()
-
-    ''''
-    # load data
-    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
-    data_dict = pickle.load(open(filename, 'rb'))
-    data_dict = dict()
-    for j, f in enumerate(features):
-        filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', '_'.join([subj, task, f]) + '.csv') #run on cleaned trials (outliers dropped)
-        df = pd.read_csv(filename)
-        df.columns = [int(x) for x in df.columns]
-        data_dict[f] = dict(df)
-
-    filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', '_'.join([subj, task, predictor]) + '.csv')
-    df = pd.read_csv(filename)
-    df.columns = [int(x) for x in df.columns]
-    data_dict[predictor] = dict(df)    
-    '''
     
     if static:
         filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'static', '_'.join([subj, task]))
     else:
-        filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'with_mins', '_'.join([subj, task])) #WITH MINS
+        if surrogate:
+            filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'unsmoothed', folder, 'no_short_windows', 'surr_'+ str(id_num), '_'.join([subj, task, 'surr'])) 
+            print ('loading surrogate data from\n%s' %(filename))
+            sys.stdout.flush()
+        else:
+            filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'unsmoothed', folder, 'no_short_windows', '_'.join([subj, task])) 
 
     data_dict = pickle.load( open(filename+'.p', "rb" )) # keys: elecs, values: dataframe of trials x features
-    
+
     elecs = data_dict.keys()
     colnames = list(data_dict[elecs[0]].columns)
     predictor = colnames.pop(colnames.index('RTs'))
     features = colnames
-
-    #drop stds from features
-    #features = ['maxes_rel', 'medians','lats_pro']
 
     all_alphas, all_models, all_scores, all_coefs, all_scores_null, all_pval, all_zcoefs = [[] for i in range(7)]
 
@@ -194,8 +202,8 @@ def plot_figures(subj, task, reg_dict, static):
     if static:
         saveDir = os.path.join(SJdir, 'PCA','Stats','Regression','static')
     else:
-        saveDir = os.path.join(SJdir, 'PCA','Stats', 'Regression')
-
+        saveDir = os.path.join(SJdir, 'PCA','Stats', 'Regression','unsmoothed')
+    
     for elec in elecs:
         idx = np.where(np.in1d(elecs, elec))[0][0]
 

@@ -17,23 +17,28 @@ def PCA_threshold_SGE(DATASET):
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     subj, task = DATASET.split('_')
 
-    for p in ['medians', 'maxes_rel']:
+    for p in ['medians', 'means', 'stds', 'maxes','maxes_rel']:
+        saveDir = os.path.join(SJdir, 'PCA', 'Stats', 'Networks', 'unsmoothed', '_'.join(['PCA',p]), 'networks')
+        if not(os.path.exists(saveDir)):
+            os.mkdir(saveDir)
+
         df_thresh = PCA_thresh(subj, task, p)
-        filename = os.path.join(SJdir, 'PCA', 'Stats', '_'.join(['PCA',p]), 'networks', '_'.join([subj, task, 'thresh.csv']))
+        
+        filename = os.path.join(saveDir, '_'.join([subj, task, 'thresh.csv']))
         df_thresh.to_csv(filename, index = False)
 
         PCA_corr(subj, task, p, df_thresh) 
 
-def PCA_thresh(subj, task, param):
+def PCA_thresh(subj, task, param, folder = 'maxes_medians'):
     '''
     calculates the threshold on a PCA loading matrix
     '''
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     #load in ROIs, patterns per elec
-    df_details = pd.read_csv(os.path.join(SJdir, 'PCA','Stats','Regression', 'with_stds', 'all_coefs_withpatterns_withROIs.csv'))
+    df_details = pd.read_csv(os.path.join(SJdir, 'PCA','Stats','Regression', 'unsmoothed', folder, 'no_short_windows', 'all_coefs_withpatterns_withROIs.csv'))
     
     #load in PCA loadings
-    filename = os.path.join(SJdir, 'PCA', 'Stats', '_'.join(['PCA', param]), '_'.join([subj, task, 'loadings.csv']))
+    filename = os.path.join(SJdir, 'PCA', 'Stats', 'Networks', 'unsmoothed', '_'.join(['PCA', param]), '_'.join([subj, task, 'loadings.csv']))
     df = pd.read_csv(filename)
 
     #format dataframe
@@ -100,7 +105,7 @@ def PCA_corr(subj, task, param, df_thresh):
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
 
     #get original trial parameter data
-    filename = os.path.join(SJdir, 'PCA','Stats','outliers','for_PCA', '_'.join([subj, task, param]) + '.csv')
+    filename = os.path.join(SJdir, 'PCA','Stats','outliers','for_PCA', 'unsmoothed', '_'.join([subj, task, param]) + '.csv')
     df_data = pd.read_csv(filename)
     
     #create pairwise correlation matrix
@@ -115,7 +120,7 @@ def PCA_corr(subj, task, param, df_thresh):
         idx = [str(x) for x in idx]
         df_pc = df_corr.loc[idx, idx] #pull corr values for those elecs
         
-        filename = os.path.join(SJdir, 'PCA', 'Stats', '_'.join(['PCA',param]), 'networks', '_'.join([subj, task, pc + '.csv']))
+        filename = os.path.join(SJdir, 'PCA', 'Stats', 'Networks', 'unsmoothed', '_'.join(['PCA',param]), 'networks', '_'.join([subj, task, pc + '.csv']))
         df_pc.to_csv(filename)
 
 

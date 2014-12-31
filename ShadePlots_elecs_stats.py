@@ -13,28 +13,31 @@ def shadeplots_elecs_stats():
     calculates mean, peak, latency, and std per trial for all electrodes in an active cluster - added medians and coefficient of variation and mins
     uses windows for individual electrodes from PCA/Stats/single_electrode_windows_withdesignation.csv
     saves pickle file with numbers per trial in ShadePlots_hclust/elecs/significance_windows
+    *** runs on unsmoothed data (12/11/14)***
     """
 
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/'
 
-    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_withdesignation_EDITED.csv')
+    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_csvs', 'single_electrode_windows_withdesignation_EDITED.csv')
     df = pd.read_csv(filename)
 
     for s_t in df.groupby(['subj','task']):
 
         subj, task = s_t[0]
         #load data
-        filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')
+        filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_unsmoothed.mat')
         data_dict = loadmat.loadmat(filename)
 
         active_elecs, Params, srate, RT, data_all = [data_dict.get(k) for k in ['active_elecs','Params','srate','RTs','data_percent']]
         bl_st = Params['bl_st']
         bl_st = bl_st/1000*srate
-        #sys.stdout.flush()
+        
+        if task in ['DecisionAud', 'DecisionVis']:
+            bl_st = 500/1000*srate #remove cue from baseline - start/end_idx are relative to cue onset) - change 12/24 - okay with RT 12/25
 
         cofvar, maxes_rel, medians, means, stds, maxes, lats, sums, lats_pro, RTs, num_dropped, mins, lats_min = [dict() for i in range(13)]
         
-        RT = RT + abs(bl_st) #RTs are calculated from stim onset, need to account for bl in HG_elecMTX_percent
+        RT = RT + abs(bl_st) #RTs are calculated from stim/cue onset, need to account for bl in HG_elecMTX_percent (for 500, not 1000 baseline 12/25)
 
         for row in s_t[1].itertuples():
             _, _, subj, task, cluster, pattern, elec, start_idx, end_idx, start_idx_resp, end_idx_resp, _, _ = row
@@ -222,9 +225,9 @@ def shadeplots_elecs_stats():
                 df.ix[ix,'dropped'] = num_to_drop * 2 #dropping both ends of RT distribution
 
         #save stats (single trials)
-        filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
+        filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'unsmoothed', 'data', ''.join([subj, '_', task, '.p']))
         data_dict = {'active_elecs': active_elecs, 'lats_pro': lats_pro, 'sums':sums, 'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st,'RTs':RTs, 'dropped':num_dropped, 'maxes_rel' : maxes_rel, 'medians' : medians, 'variations': cofvar, 'mins': mins, 'lats_min':lats_min}
-
+        
         with open(filename, 'w') as f:
             pickle.dump(data_dict, f)
             f.close()
@@ -235,11 +238,11 @@ def shadeplots_elecs_stats():
                 continue
             data = pd.DataFrame(data_dict[k])
         
-            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'csv_files', 'orig', '_'.join([subj, task, k]) + '.csv')
+            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'unsmoothed', 'csv_files', 'orig', '_'.join([subj, task, k]) + '.csv')
             data.to_csv(filename, index = False)
 
     #save dataframe with dropped trials
-    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_withdesignation_EDITED_dropped.csv')
+    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_withdesignation_EDITED_dropped_unsmoothed.csv')
     df.to_csv(filename)
     
     

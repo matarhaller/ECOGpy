@@ -3,15 +3,16 @@ library(proxy)
 library(reshape2)
 library(psych)
 
-params = c('maxes_rel', 'lats_pro','medians','stds')
+params = c('maxes_rel','medians','stds', 'means', 'maxes')
+#params = c('means')
 
-DATADIR = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/Stats/outliers/for_PCA/' #csv files with values for each subj/task with outlier rejection for PCA (all elecs have same number of trials, each feature has different number of trials)
+DATADIR = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/Stats/outliers/for_PCA/unsmoothed/' #csv files with values for each subj/task with outlier rejection for PCA (all elecs have same number of trials, each feature has different number of trials)
 
 d = read.table('test.subjects',sep = '_')
 
 for (i in 1:nrow(d)) {
   for (p in params) {
-    saveDir = paste('/home/knight/matar/MATLAB/DATA/Avgusta/PCA/Stats/PCA_', p, '/', sep = "")
+    saveDir = paste('/home/knight/matar/MATLAB/DATA/Avgusta/PCA/Stats/Networks/unsmoothed/PCA_', p, '/', sep = "")
     
     subj = d$V1[i]
     task = d$V2[i]

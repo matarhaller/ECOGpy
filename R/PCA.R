@@ -2,7 +2,7 @@ setwd('/home/knight/matar/PYTHON/ECOGpy/')
 library(psych)
 library(R.matlab)
 library(proxy)
-source("EFA_Comparison.R")
+source("R/EFA_Comparison.R")
 library(reshape2)
 library(ggplot2)
 library(cluster)
@@ -13,8 +13,7 @@ saveDir = '/home/knight/matar/MATLAB/DATA/Avgusta/PCA/plots/'
 d = read.table('test.subjects',sep = '_')
 df = data.frame()
 
-#for (i in 1:nrow(d) ) {
-for (i in c(36,37,38,39,40,41)) {  
+for (i in 1:nrow(d) ) {
   subj = d$V1[i]
   task = d$V2[i]
   
