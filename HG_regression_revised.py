@@ -16,15 +16,16 @@ def HG_regression_allelecs_SGE(DATASET):
     feeds in subj/task to HG_regression_all_elecs and saves output to file
     *** edited to use unsmoothed data 12/11/14 ***
     *** added surrogate 12/12/14
+    *** surrogate is for random surrogates, not shifted HG 1/7/15***
     """
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
     subj, task = DATASET.split('_')
 
     static = False
-    surrogate = False
-    ID = 60 
+    surrogate = True
+    ID = 99
 
-    folder = 'stds_only'
+    folder = 'maxes_medians'
 
     reg_dict = HG_regression_allelecs(subj, task, surrogate = surrogate, id_num = ID, static = static, folder = folder)
     
@@ -34,8 +35,8 @@ def HG_regression_allelecs_SGE(DATASET):
         saveDir = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'unsmoothed', folder, 'no_short_windows')
 
     if surrogate:
-        saveDir = os.path.join(saveDir, 'surr_' + str(ID))
-        filename = os.path.join(saveDir, '_'.join([subj, task, 'surr']))
+        saveDir = os.path.join(saveDir, 'surr_rand_' + str(ID))
+        filename = os.path.join(saveDir, '_'.join([subj, task, 'surr_rand']))
         if not(os.path.exists(saveDir)):
             os.mkdir(saveDir)
         else:
@@ -63,8 +64,8 @@ def HG_regression_allelecs_SGE(DATASET):
     df = pd.DataFrame(data_array, columns = features, index = elecs)
 
     if surrogate:
-        filename = os.path.join(saveDir, '_'.join([subj, task]) + '_coefs_surr.csv')
-        print('saving surrogate data to\n%s' %(filename))
+        filename = os.path.join(saveDir, '_'.join([subj, task]) + '_coefs_surr_rand.csv')
+        print('saving random surrogate data to\n%s' %(filename))
         sys.stdout.flush()
         df.to_csv(filename)
     else:
@@ -73,7 +74,7 @@ def HG_regression_allelecs_SGE(DATASET):
     #plot_figures(subj, task, reg_dict, static)
     
 
-def HG_regression_allelecs(subj, task, surrogate = False, id_num = 99, static = False, folder = 'tmp'):
+def HG_regression_allelecs(subj, task, surrogate = None, id_num = None, static = False, folder = None):
     '''
     Runs ridge regression on maxes, means, stds, sums, latency (proportion) data for a subj/task
     Loops on each electrode
@@ -91,13 +92,16 @@ def HG_regression_allelecs(subj, task, surrogate = False, id_num = 99, static = 
         filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'static', '_'.join([subj, task]))
     else:
         if surrogate:
-            filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'unsmoothed', folder, 'no_short_windows', 'surr_'+ str(id_num), '_'.join([subj, task, 'surr'])) 
-            print ('loading surrogate data from\n%s' %(filename))
+            filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'unsmoothed', folder, 'no_short_windows', 'surr_rand_'+ str(id_num), '_'.join([subj, task, 'surr_rand'])) 
+            print ('loading random surrogate data from\n%s' %(filename))
             sys.stdout.flush()
         else:
             filename = os.path.join(SJdir, 'PCA', 'Stats', 'outliers', 'for_Regression', 'unsmoothed', folder, 'no_short_windows', '_'.join([subj, task])) 
+    
+    print ('%s\n' %(filename))
+    sys.stdout.flush()
 
-    data_dict = pickle.load( open(filename+'.p', "rb" )) # keys: elecs, values: dataframe of trials x features
+    data_dict = pickle.load( open(filename + '.p', "rb" )) # keys: elecs, values: dataframe of trials x features
 
     elecs = data_dict.keys()
     colnames = list(data_dict[elecs[0]].columns)

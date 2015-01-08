@@ -222,12 +222,11 @@ def shadeplots_elecs_stats_surr(id_num = 99):
                     data_dur[nanidx, :] = np.nan
 
                     #drop nan from RTs
-                    #tmp_RT = np.ndarray.astype(RT, dtype = float)
-                    #tmp_RT[nanidx] = np.nan
-                    #RTs[elec] = tmp_RT
-                #else:
-                    #RTs[elec] = RT               
-
+                    tmp_RT = np.ndarray.astype(RT, dtype = float)
+                    tmp_RT[nanidx] = np.nan
+                    RTs[elec] = tmp_RT
+                else:
+                    RTs[elec] = RT     
 
                 #make surrogate data
                 data_surr = data_dur.flatten() #take HG window
@@ -236,13 +235,13 @@ def shadeplots_elecs_stats_surr(id_num = 99):
                 randidx = np.random.randint(len(data_surr))
                 data_surr = np.roll(data_surr, randidx) #circshift
 
-                #reshape data_surr with nan
+                #reshape data_surr with nan buffer at end
                 data_dur_surr = np.empty_like(data_dur)
                 start = 0
                 for j in range(data_dur.shape[0]):
                     trial_length = sum(~np.isnan(data_dur[j,:]))
                     if j>0:
-                        start = end+1
+                        start = end
                     end = start + trial_length
                     if trial_length>0: #not a nan trial
                         tmp = data_surr[start:end]
@@ -252,22 +251,6 @@ def shadeplots_elecs_stats_surr(id_num = 99):
                         data_dur_surr[j,:] = -999
                 data_dur_surr[data_dur_surr == -999] = np.nan
 
-                #drop nan trials from data_dur_surr (from RT so matches length of medians)
-                nanidx = np.isnan(np.nanmean(data_dur_surr, axis = 1)) #if start > end
-                if np.any(nanidx):
-                    #drop equivalent number of long RTs
-                    num_to_drop = np.sum(nanidx)
-                    i = np.argpartition(RT, -num_to_drop)[-num_to_drop :] #find the indices of the longest RTs
-                    nanidx[i] = True #mark the long trials as bad too
-                    data_dur_surr[nanidx, :] = np.nan
-
-                    #drop nan from RTs
-                    tmp_RT = np.ndarray.astype(RT, dtype = float)
-                    tmp_RT[nanidx] = np.nan
-                    RTs[elec] = tmp_RT
-                else:
-                    RTs[elec] = RT     
-
                 #make surrogate data for idx
                 data_idx = np.ones_like(data_dur)
                 data_idx = (data_idx.transpose() * range(data_idx.shape[0])).transpose() #trials x time with index for trial data
@@ -275,13 +258,13 @@ def shadeplots_elecs_stats_surr(id_num = 99):
                 data_idx = data_idx[~data_surr_drop]#remove datapoints that are missing in data_surr (to get same number of points)
                 data_idx = np.roll(data_idx, randidx) #circshift
 
-                #reshape data_surr with nan
+                #reshape data_idx with nan
                 data_dur_idx = np.empty_like(data_dur)
                 start = 0
                 for j in range(data_dur.shape[0]):
                     trial_length = sum(~np.isnan(data_dur[j,:]))
                     if j>0:
-                        start = end+1
+                        start = end
                     end = start + trial_length
                     if trial_length>0: #not a nan trial
                         tmp = data_idx[start:end]

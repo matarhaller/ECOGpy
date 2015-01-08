@@ -194,7 +194,7 @@ def plot_cluster_brain_duration(subj, task, reconpath, stim_or_resp = 'stim', xy
     return f
 
 
-def plot_xy_map(weights, locs=None, im_path=None, ecog=None,  szmult=2000, colors = None, cmap=plt.cm.Reds, pltkey=None, ax=None, cbar=False, **kwargs):
+def plot_xy_map(weights, locs=None, im_path=None, ecog=None,  szmult=2000, colors = None, cmap=plt.cm.Reds, pltkey=None, ax=None, cbar=False, vaxes = False, **kwargs):
     '''
     (plotting func from chris - with colormap and scaling edits)
 
@@ -235,8 +235,11 @@ def plot_xy_map(weights, locs=None, im_path=None, ecog=None,  szmult=2000, color
 
     ax.imshow(im)
     #ax.scatter(impts.x, impts.y, c=impts[pltkey], s=szmult*np.abs(impts[pltkey]), cmap=cmap, vmin=impts[pltkey].min(), vmax=impts[pltkey].max())
-    ax.scatter(impts.x, impts.y, c=colors, s=szmult, cmap=cmap, vmin=impts[pltkey].min(), vmax=impts[pltkey].max())
     #ax.scatter(impts.x, impts.y, c=impts[pltkey], s=szmult, cmap=cmap, vmin=1, vmax=cmax)
+    if vaxes == False:
+        vaxes = (impts[pltkey].min(), impts[pltkey].max()) #tuple of vmin, vmax
+
+    ax.scatter(impts.x, impts.y, c=colors, s=szmult, cmap=cmap, vmin = vaxes[0], vmax = vaxes[1]) 
 
     ax.set_axis_off()
     if cbar==True: ax.figure.colorbar(ax.collections[0], shrink=.75)

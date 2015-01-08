@@ -9,15 +9,15 @@ from scipy import stats
 from sklearn.preprocessing import scale
 
 
-def plot_correlations(to_scale = False, static = False, to_plot = True, surrogate = False):
+def plot_correlations(to_scale = False, static = False, to_plot = True, surrogate = False, id_num = None):
     '''
     This  plots the correlation between all the features and RTs
     as a scatterplot matrix and saves the r values to a csv
     it uses non-outlier rejected data
     In PCA/Stats/Correlations
     to_scale argument determines if to normalize the variables or not (including RT)
-    static argument determines if to use static duration windows or RT-adjusted
     *** edited to use unsmoothed 12/11/14. not for static ***
+    *** surrogate option is for random surrogate data - with id number ***
     '''
 
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/'
@@ -37,76 +37,72 @@ def plot_correlations(to_scale = False, static = False, to_plot = True, surrogat
         features.sort()
         features.append('RTs') 
 
-
     #calcualte correlations for each subj, task, elec
     for s_t in subj_task.itertuples():
         _, subj, task = s_t
-
-
-        #filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'data', ''.join([subj, '_', task, '.p']))
-        #data_dict = pickle.load(open(filename, 'rb'))
-
-        #elecs = data_dict['means'].keys()
+        #if '_'.join([subj, task]) != 'GP15_EmoGen':
+        #    continue
         big_dict = dict()
         for f in features:
-
+            dataDir = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows')
             if static:
-                filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'static', 'csv_files', '_'.join([subj, task, f ]))
+                dataDir = os.path.join(dataDir, 'smoothed','csv_files','static')
+            elif surrogate:
+                dataDir = os.path.join(dataDir, 'unsmoothed', 'csv_files', 'surr_rand_' + str(id_num))
             else:
-                filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'unsmoothed', 'csv_files', 'orig', '_'.join([subj, task, f]))
+                dataDir = os.path.join(dataDir, 'unsmoothed', 'csv_files')
 
-            if surrogate:
-                filename = filename+'_surr'
-
-
+            filename = os.path.join(dataDir, '_'.join([subj, task, f]))
+            if static:
+                filename = filename + '_static'
+            elif surrogate:
+                filename = filename + '_surr_rand'
             df = pd.read_csv(filename + '.csv')
 
             elecs = df.columns.values
             big_dict[f] = df
 
-        #pairs of comparisons (feature pairs)
-        #flist = []
-        #for f1 in features:
-        #    for f2 in features:
-        #        flist.append('_'.join([f1, f2]))
 
         corr_dict = dict()
 
+        #make directories
+        saveDir = os.path.join(SJdir, 'PCA','Stats','Correlations', 'unsmoothed', 'feature_corrs')
+        if static:
+            saveDir = os.path.join(SJdir, 'PCA','Stats','Correlations', 'smoothed', 'feature_corrs', 'static')
+        elif surrogate:
+            saveDir = os.path.join(saveDir, 'surr_rand_' + str(id_num))
+
+        if not(os.path.exists(saveDir)):
+            os.makedirs(saveDir)
+            print('making:\n%s' %(saveDir))
+
         for e in elecs:
+            #if e == '27':
+            #    print ba
             if to_plot:
                 #plot scatterplot matrix
                 if to_scale == True: #if to normalize features (easier to spot outliers)
+                    filename = os.path.join(saveDir, '_'.join([subj, task, 'e'+str(e)+'_scaled']))
                     if static:
-                        filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'static', 'feature_corrs', '_'.join([subj, task, 'e'+str(e)+'_scaled']))
                         stds, maxes_rel, lats, medians, mins, RTs = [scale(big_dict[f][e].astype(float)) for f in features]
                     else:
-                        filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'unsmoothed', 'feature_corrs', '_'.join([subj, task, 'e'+str(e)+'_scaled']))
-                        if surrogate:
-                            filename = filename+'_surr'
-                        #stds, maxes_rel, lats_pro, medians, mins, RTs = [scale(big_dict[f][e].astype(float)) for f in features]
                         stds, maxes_rel, medians, RTs = [scale(big_dict[f][e].astype(float)) for f in features]
-
-                else:
+                else: #don't scale
+                    filename = os.path.join(saveDir, '_'.join([subj, task, 'e'+str(e)]))
                     if static:
-                        filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'static', 'feature_corrs', '_'.join([subj, task, 'e'+str(e)]))
                         stds, maxes_rel, lats, medians, mins, RTs = [big_dict[f][e] for f in features]
                     else:
-                        filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'unsmoothed', 'feature_corrs', '_'.join([subj, task, 'e'+str(e)]))
-                        if surrogate:
-                            filename = filename+'_surr'
-                        #stds, maxes_rel, lats_pro, medians, mins, RTs = [big_dict[f][e] for f in features]
                         stds, maxes_rel,  medians,  RTs = [big_dict[f][e] for f in features]
 
                 if static:
                     tmp = pd.DataFrame({'stds' : stds, 'maxes_rel': maxes_rel, 'lats' : lats , 'medians' : medians, 'RTs': RTs, 'mins': mins})
                 else:
-                    #tmp = pd.DataFrame({'stds' : stds, 'maxes_rel': maxes_rel, 'lats_pro' : lats_pro , 'medians' : medians, 'RTs': RTs, 'mins': mins})
                     tmp = pd.DataFrame({'stds' : stds, 'maxes_rel': maxes_rel, 'medians' : medians, 'RTs': RTs})
 
                 f, ax = plt.subplots(figsize = (10, 10))
                 scatter_matrix(tmp, ax = ax, grid = True, hist_kwds={'alpha': 0.5})
 
-                plt.savefig(filename+'.png')
+                plt.savefig(filename + '.png')
                 plt.close()
 
 
@@ -121,6 +117,7 @@ def plot_correlations(to_scale = False, static = False, to_plot = True, surrogat
                         corr_dict[e] = corr_list
                         flist.append('_'.join([f1, f2]))
             
+        #csv with all elecs for subj/task
         df = pd.DataFrame(corr_dict).T
         df = df.reset_index()
 
@@ -128,20 +125,9 @@ def plot_correlations(to_scale = False, static = False, to_plot = True, surrogat
         cols.extend(flist)
         df.columns = cols
 
-        #df_elec = pd.merge(df, df_designations[(df_designations.subj==subj) & (df_designations.task==task)][['subj','task','elec','pattern']], how = 'outer', on = ['subj','task','elec'])
-        df_elec = df #problem with adding pattern for some reason
-
         if to_scale == True:
-            if static:
-                filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'static', 'feature_corrs', '_'.join([subj,task, 'feature_corrs_scaled']))
-            else:
-                filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'unsmoothed', 'feature_corrs', '_'.join([subj,task, 'feature_corrs_scaled']))
+            filename = os.path.join(saveDir,  '_'.join([subj,task, 'feature_corrs_scaled']))
         else:
-            if static:
-                filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'static', 'feature_corrs', '_'.join([subj,task, 'feature_corrs']))
-            else:
-                filename = os.path.join(SJdir, 'PCA','Stats', 'Correlations', 'unsmoothed', 'feature_corrs', '_'.join([subj,task, 'feature_corrs']))
-
-        if surrogate:
-            filename = filename+'_surr'
-        df_elec.to_csv(filename+'.csv', index = False)
+            filename = os.path.join(saveDir,  '_'.join([subj,task, 'feature_corrs']))
+       
+        df.to_csv(filename+'.csv', index = False)

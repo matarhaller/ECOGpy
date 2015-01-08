@@ -34,7 +34,7 @@ def shadeplots_elecs_stats(resplocked = False):
             bl_st = Params['bl_st']
             bl_st = bl_st/1000*srate
 
-            medians, means, stds, maxes, lats, lats_pro, RTs, mins, lats_min, RTs_median = [dict() for i in range(10)]
+            medians, means, stds, maxes, lats, lats_pro, RTs, mins, lats_min, RTs_median, RTs_min = [dict() for i in range(11)]
 
             RT = RT + abs(bl_st) #RTs are calculated from stim onset, need to account for bl in HG_elecMTX_percent
 
@@ -68,11 +68,12 @@ def shadeplots_elecs_stats(resplocked = False):
                     mins[elec] = data_resp.min()
                     RTs[elec] = RT.mean()/srate*1000
                     RTs_median[elec] = np.median(RT)/srate*1000
+                    RTs_min[elec] = np.min(RT)/srate*1000
 
 
                 #save stats (mean traces)
                 filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'smoothed', 'mean_traces', 'data', ''.join([subj, '_', task, '_resplocked.p']))
-                data_dict = {'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st, 'RTs':RTs, 'medians' : medians, 'mins': mins, 'lats_min':lats_min, 'RTs_median': RTs_median}
+                data_dict = {'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st, 'RTs':RTs, 'medians' : medians, 'mins': mins, 'lats_min':lats_min, 'RTs_median': RTs_median, 'RTs_min': RTs_min}
 
                 with open(filename, 'w') as f:
                     pickle.dump(data_dict, f)
@@ -108,7 +109,7 @@ def shadeplots_elecs_stats(resplocked = False):
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'unsmoothed', 'data', ''.join([subj, '_', task, '.p']))
             data_dict = pickle.load(open(filename, 'rb')) #keys are medians, means, for single trial values
 
-            medians, means, stds, maxes, lats, lats_pro, RTs, mins, lats_min, RTs_median = [dict() for i in range(10)]
+            medians, means, stds, maxes, lats, lats_pro, RTs, mins, lats_min, RTs_median, RTs_min = [dict() for i in range(11)]
 
             if task in ['DecisionAud', 'DecisionVis']:
                 bl_st = -500/1000*srate #remove cue from baseline - start/end_idx are relative to stim onset)
@@ -147,10 +148,11 @@ def shadeplots_elecs_stats(resplocked = False):
                 mins[elec] = data[start_idx:end_idx].min()
                 RTs[elec] = RT.mean()/srate*1000
                 RTs_median[elec] = np.median(RT)/srate*1000
+                RTs_min[elec] = np.min(RT)/srate*1000
 
             #save stats (mean traces)
             filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'smoothed', 'mean_traces', 'data', ''.join([subj, '_', task, '.p']))
-            data_dict = {'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st, 'RTs':RTs, 'medians' : medians, 'mins': mins, 'lats_min':lats_min, 'RTs_median': RTs_median}
+            data_dict = {'means':means, 'stds':stds, 'maxes':maxes, 'lats':lats, 'srate': srate, 'bl_st':bl_st, 'RTs':RTs, 'medians' : medians, 'mins': mins, 'lats_min':lats_min, 'RTs_median': RTs_median, 'RTs_min' : RTs_min}
 
             with open(filename, 'w') as f:
                 pickle.dump(data_dict, f)
