@@ -9,15 +9,18 @@ import numpy as np
 import sys
 import cPickle as pickle
 
-def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', thresh = 0, chunk_size = 100, baseline = -500, black_chunk_size = 0):
+def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', thresh = 10, chunk_size = 100, baseline = -500, black_chunk_size = 0):
     """ 
     calculate onset and offset window for every active electrode (ignoring clusters)
     saves csv for each sub/task for easy plotting later
+    includes real vs empty - 2 conditions difference
+
     """
 
     subj, task = DATASET.split('_')
 
-    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')
+    #filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_empty.mat')
+    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')    
     data = loadmat.loadmat(filename)
     srate = data['srate']
     active_elecs = data['active_elecs']
@@ -35,7 +38,8 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
     else:
         st_tp = 0
 
-    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '_bigwindow.csv']))
+    #filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '_empty.csv']))
+    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '.csv']))
     subjs = list(); tasks = list(); pthr = list(); elecs = list(); starts = list(); ends = list(); 
 
     for i, e in enumerate(active_elecs):
@@ -43,14 +47,13 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
         pvals = list();
         edata = data[i,:]
         nozero = np.copy(edata)
-        nozero[:,nozero.mean(axis=0)<0] = 0 #zero out negative values
+        nozero[:,nozero.mean(axis=0)<0] = 0 #zero out negative values in mean
 
-        for t in np.arange(abs(bl_st)+st_tp, edata.shape[1]):
-            (t, p) = stats.ttest_1samp(nozero[:,t], 0)
+        for j in np.arange(abs(bl_st)+st_tp, edata.shape[1]):
+            (t, p) = stats.ttest_1samp(nozero[:,j], 0)
             pvals.append(p)
-
         thr = fdr_correct.fdr2(pvals, q = 0.05)
-        H = np.array((pvals<thr)).astype('int')
+        H = np.array(np.array(pvals<thr)).astype('int')
 
         if (thr>0):
 
@@ -78,7 +81,7 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
             end_idx = end_idx + st_tp
             chunk = (end_idx - start_idx) >= chunksize
             if sum(chunk) > 0:
-                #significant windows on those that passed threshold (10%) (ignoring threshold and chunksize)
+                #significant windows on elecs that passed threshold (10%) (ignoring threshold and chunksize)
                 difference = np.diff(H, n = 1, axis = 0)
                 start_idx = np.where(difference==1)[0]+1
                 end_idx = np.where(difference == -1)[0]
@@ -123,42 +126,11 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
         pthr.extend([thr] * len(end_idx))
         starts.extend(start_idx)
         ends.extend(end_idx)
-        
-        """
-        #plot
-        f, ax = plt.subplots(figsize = (10,10))
-        scale_min = edata.mean(axis = 0).min() - 10
-        scale_max = edata.mean(axis = 0).max() + 10
-        tmp = (np.arange(scale_min, scale_max))
-
-        ax.plot(np.arange(bl_st, edata.shape[1]+bl_st), edata.mean(axis = 0), zorder = 1, linewidth = 3)
-        sem = np.std(edata, axis = 0)/np.sqrt(edata.shape[0])
-        ax.fill_between(np.arange(bl_st, edata.shape[1]+bl_st), edata.mean(axis = 0)+sem, edata.mean(axis=0)-sem, alpha = 0.5, zorder = 0, edgecolor = 'None', facecolor = 'slateblue')
-        ax.plot(np.arange(bl_st, edata.shape[1]+bl_st), np.zeros(edata.shape[1]), color = 'k', linewidth = 3) #xaxis
-        ax.plot(np.zeros(tmp.size), tmp, color = 'k', linewidth = 3) #yaxis
-        ax.set_ylabel('% change HG')
-        ax.set_xlabel('time (ms)')
-        ax.autoscale(tight=True)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.get_xaxis().tick_bottom()
-        ax.get_yaxis().tick_left()
-
-        if start_idx.size>0:
-            for i, s in enumerate(start_idx):
-                tmp = np.arange(s, end_idx[i])
-                start = int(s/srate*1000)
-                finish = int(end_idx[i]/srate*1000)
-                ax.plot(tmp, np.zeros(tmp.size), color = 'r', linewidth = 3.5, label = (start, finish))
-                ax.legend()
-
-        ax.set_title(' '.join([subj, task, ':', 'electrode', str(e)]))
-        plt.savefig(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '_e', str(e), '_bigwindow'])))
-        plt.close()
-        """
 
         data_dict = {'edata':edata, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx, 'srate':srate,'thresh':thresh, 'chunksize':chunksize, 'black_chunksize':black_chunksize}
+        #data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '_empty.p'])
         data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '.p']))
+
         with open(data_path, 'w') as f:
             pickle.dump(data_dict, f)
             f.close()
@@ -167,6 +139,86 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
     sig_windows = sig_windows[['subj','task','elec', 'start_idx','end_idx','pthreshold']]
     sig_windows.to_csv(filename)
 
-if __name__ == '__main__':
-    DATASET = sys.argv[1]
-    shadeplots_allelecs(DATASET)
+
+
+def shadeplots_allelecs_2conditions(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta', chunk_size = 100, baseline = -500):
+    """ 
+    calculate onset and offset window for difference between 2 conditions (real and empty)
+    saves csv for each sub/task for easy plotting later
+    #only relevant for EmoGen (not adjusted for my data start times)
+
+    """
+
+    subj, task = DATASET.split('_')
+
+    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')
+    data = loadmat.loadmat(filename)
+    srate = data['srate']
+    active_elecs = data['active_elecs']
+    data = data['data_percent']
+
+    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_empty.mat')
+    data_empty = loadmat.loadmat(filename)
+    data_empty = data_empty['data_percent']
+
+    #convert to srate
+    bl_st = baseline/1000*srate
+    chunksize = chunk_size/1000*srate
+    st_tp = 0
+
+    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '_real_vs_empty.csv']))
+    subjs = list(); tasks = list(); pthr = list(); elecs = list(); starts = list(); ends = list(); 
+
+    for i, e in enumerate(active_elecs):
+
+        pvals = list();
+        edata = data[i,:]
+        edata_empty = data_empty[i,:]
+
+        #ttest between conditions for every time point
+        for j in np.arange(abs(bl_st)+st_tp, edata.shape[1]):
+            (t, p) = stats.ttest_ind(edata[:,j], edata_empty[:,j], equal_var = True)
+            pvals.append(p)
+        thr = fdr_correct.fdr2(pvals, q = 0.05)
+        H = np.array(np.array(pvals)<thr).astype('int')
+
+        #significance windows
+        difference = np.diff(H, n = 1, axis = 0)
+        start_idx = np.where(difference==1)[0]+1
+        end_idx = np.where(difference == -1)[0]
+
+        if start_idx.size > end_idx.size: #last chunk goes until end
+            end_idx = np.append(end_idx, int(edata.shape[1]-abs(bl_st)-st_tp))
+
+        elif start_idx.size < end_idx.size:
+            start_idx = np.append(0, start_idx) #starts immediately significant
+
+        if (start_idx.size!=0):
+            if (start_idx[0] > end_idx[0]): #starts immediately significant
+                start_idx = np.append(0, start_idx)
+        if (start_idx.size!=0):
+            if (end_idx[-1] < start_idx[-1]):#significant until end
+                end_idx = np.append(end_idx, int(edata.shape[1]-abs(bl_st)-st_tp))
+
+        #drop chunks that < chunk_size
+        chunk = (end_idx - start_idx) >= chunksize
+        start_idx = start_idx[chunk]
+        end_idx = end_idx[chunk]
+ 
+        
+        subjs.extend([subj] * len(start_idx))
+        tasks.extend([task] * len(end_idx))
+        elecs.extend([e] * len(start_idx))
+        pthr.extend([thr] * len(end_idx))
+        starts.extend(start_idx)
+        ends.extend(end_idx)
+
+        data_dict = {'edata':edata, 'edata_empty':edata_empty, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx, 'srate':srate,'chunksize':chunksize}
+        data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '_real_vs_empty.p']))
+        with open(data_path, 'w') as f:
+            pickle.dump(data_dict, f)
+            f.close()
+
+    sig_windows = pd.DataFrame({'subj':subjs, 'task':tasks, 'elec':elecs, 'pthreshold':pthr, 'start_idx':starts, 'end_idx':ends})
+    sig_windows = sig_windows[['subj','task','elec', 'start_idx','end_idx','pthreshold']]
+    sig_windows.to_csv(filename)

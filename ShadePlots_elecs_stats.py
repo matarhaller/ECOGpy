@@ -18,17 +18,19 @@ def shadeplots_elecs_stats():
 
     SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/'
 
-    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_csvs', 'single_electrode_windows_withdesignation_EDITED.csv')
+    #filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_csvs', 'single_electrode_windows_withdesignation_EDITED.csv')
+    filename = os.path.join(SJdir, 'PCA', 'csvs_FINAL', 'mean_traces_all_subjs_dropSR.csv')
     df = pd.read_csv(filename)
 
     for s_t in df.groupby(['subj','task']):
 
         subj, task = s_t[0]
         #load data
-        filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_unsmoothed.mat')
+        #filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_unsmoothed.mat')
+        filename = os.path.join(SJdir, 'Subjs',subj, task, 'HG_elecMTX_zscore.mat')
         data_dict = loadmat.loadmat(filename)
 
-        active_elecs, Params, srate, RT, data_all = [data_dict.get(k) for k in ['active_elecs','Params','srate','RTs','data_percent']]
+        active_elecs, Params, srate, RT, data_all = [data_dict.get(k) for k in ['active_elecs','Params','srate','RTs','data_zscore']]
         bl_st = Params['bl_st']
         bl_st = bl_st/1000*srate
         
@@ -40,7 +42,7 @@ def shadeplots_elecs_stats():
         RT = RT + abs(bl_st) #RTs are calculated from stim/cue onset, need to account for bl in HG_elecMTX_percent (for 500, not 1000 baseline 12/25)
 
         for row in s_t[1].itertuples():
-            _, _, subj, task, cluster, pattern, elec, start_idx, end_idx, start_idx_resp, end_idx_resp, _, _ = row
+            _, subj, task, elec, pattern, cluster, start_idx, end_idx, start_idx_resp, end_idx_resp, RTs_values, RTs_median, RTs_min, lats_values, lats_semi_static, lats_static, max_vals, ROI = row
             eidx = np.in1d(active_elecs, elec)
             data = data_all[eidx,:,:].squeeze()
 
@@ -73,8 +75,8 @@ def shadeplots_elecs_stats():
                 mins[elec] = data[:,start_idx:end_idx].min(axis = 1)
 
                 #update dataframe
-                ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
-                df.ix[ix,'dropped'] = num_to_drop
+                #ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
+                #df.ix[ix,'dropped'] = num_to_drop
 
 
             if pattern == 'R':
@@ -149,8 +151,8 @@ def shadeplots_elecs_stats():
                     cofvar[elec] = stds[elec]/means[elec]
 
                 #update dataframe
-                ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
-                df.ix[ix,'dropped'] = num_to_drop * 2 #dropping both ends of RT distribution
+                #ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
+                #df.ix[ix,'dropped'] = num_to_drop * 2 #dropping both ends of RT distribution
 
             if pattern == 'D':
                 start_idx = start_idx + abs(bl_st)
@@ -221,8 +223,8 @@ def shadeplots_elecs_stats():
                     RTs[elec] = RT
 
                 #update dataframe
-                ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
-                df.ix[ix,'dropped'] = num_to_drop * 2 #dropping both ends of RT distribution
+                #ix = np.where([(df.subj == subj) & (df.task == task) & (df.elec == elec)])[1][0]
+                #df.ix[ix,'dropped'] = num_to_drop * 2 #dropping both ends of RT distribution
 
         #save stats (single trials)
         filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'unsmoothed', 'data', ''.join([subj, '_', task, '.p']))
@@ -238,12 +240,12 @@ def shadeplots_elecs_stats():
                 continue
             data = pd.DataFrame(data_dict[k])
         
-            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'unsmoothed', 'csv_files', 'orig', '_'.join([subj, task, k]) + '.csv')
+            filename = os.path.join(SJdir, 'PCA', 'ShadePlots_hclust', 'elecs', 'significance_windows', 'zscore', 'csv_files', '_'.join([subj, task, k]) + '.csv')
             data.to_csv(filename, index = False)
 
     #save dataframe with dropped trials
-    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_withdesignation_EDITED_dropped_unsmoothed.csv')
-    df.to_csv(filename)
+    #filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_withdesignation_EDITED_dropped_unsmoothed.csv')
+    #df.to_csv(filename)
     
     
 if __name__ == '__main__':

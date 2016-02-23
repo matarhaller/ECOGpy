@@ -23,8 +23,6 @@ GP15_SelfAud
 GP15_SelfVis
 GP15_FaceEmo
 GP15_FaceGen
-GP27_EmoRep
-GP27_SelfAud
 GP28_SelfAud
 GP28_SelfVis
 GP35_EmoGen
@@ -32,8 +30,6 @@ GP35_EmoRep
 GP35_FaceEmo
 GP35_FaceGen
 ST27_DecisionVis
-ST28_DecisionVis
-GP44_DecisionAud
 CP7_DecisionAud
 CP9_DecisionAud
 ST32_DecisionVis
