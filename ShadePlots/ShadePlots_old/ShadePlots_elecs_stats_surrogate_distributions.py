@@ -1,0 +1,436 @@
+from __future__ import division, print_function
+import pandas as pd
+import os
+import numpy as np
+import sys
+import cPickle as pickle
+import loadmat
+from scipy import stats
+from sklearn import cross_validation, grid_search
+from sklearn.linear_model import Ridge
+from sklearn.preprocessing import scale
+from collections import Counter
+from scipy import stats
+
+def HG_regression_surr_random_SGE(DATASET, numiter = 1000):
+    '''
+    creates random surrogate data numiter times
+    calculate regression on each surrogate data set
+    saves out distribution of regression parameters for surrogate data
+    only runs on duration electrodes
+    '''
+    
+    SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta'
+    subj, task = DATASET.split('_')
+    print (DATASET)
+
+    all_coefs, all_scores, all_alphas = [[] for i in range(3)]
+    
+    folder = 'maxes_medians_stds'
+    features = ['maxes_rel','medians', 'stds']
+
+    filename = os.path.join(SJdir, 'Subjs', subj, task, 'subj_globals.mat')
+    data_dict = loadmat.loadmat(filename)
+    srate = [data_dict.get(k) for k in ['srate']][0]
+    srate = float(srate)
+    
+    filename = os.path.join(SJdir,'PCA', 'Stats', 'single_electrode_windows_csvs', 'single_electrode_windows_withdesignation_EDITED.csv')
+    df_pattern = pd.read_csv(filename)
+
+    bad_df = pd.DataFrame({'GP44_DecisionAud':233, 'GP15_SelfVis':1, 'JH2_FaceEmo':113, 'GP35_FaceEmo':60}, index = range(1)).T
+    bad_df = bad_df.reset_index()
+    bad_df.columns = ['subj_task','elec']
+
+    for i in range(numiter):
+        print ('iteration %i out of %i' %(i, numiter))
+        #get surrogate data
+        print ('get surrogate data')
+        data_dict = shadeplots_elecs_stats_surr_random(subj, task, df_pattern, id_num = i)
+        
+        if len(data_dict['RTs'])==0:
+            print('skipping %s %s - no duration elecs\n' %(subj, task))
+            sys.stdout.flush()
+            return
+
+        ##reject outliers
+        print ('\nreject outliers')
+        data_dict_clean = reject_outliers(DATASET, data_dict, srate, df_pattern, bad_df = bad_df)
+
+        #run regression (without pvalue)
+        print ('run regression')
+        coefs, score, alpha = run_regression(DATASET, data_dict_clean)
+
+        #accumulate
+        all_coefs.append(coefs)
+        all_scores.append(score)
+        all_alphas.append(alpha)
+
+    #save out dataframes
+    scores = pd.DataFrame(all_scores)
+    coefs = pd.DataFrame(all_coefs)
+    alphas = pd.DataFrame(all_alphas)
+
+    saveDir = os.path.join(SJdir, 'PCA', 'Stats', 'Regression', 'unsmoothed', folder, 'surr_distributions')
+    if not(os.path.exists(saveDir)):
+        os.makedirs(saveDir)
+    filename = os.path.join(saveDir, '_'.join([DATASET, 'coefs_surr_dist.csv']))
+    coefs.to_csv(filename)
+    filename = os.path.join(saveDir, '_'.join([DATASET, 'alphas_surr_dist.csv']))
+    alphas.to_csv(filename)
+    filename = os.path.join(saveDir, '_'.join([DATASET, 'scores_surr_dist.csv']))
+    scores.to_csv(filename)
+    print('saving %s\n' %(filename))
+    sys.stdout.flush()
+
+
+def run_regression(DATASET, data_dict):
+    """
+    runs ridge regression without pvalue (surrogate distribution) - based on HG_regression_revised
+    Loops on each electrode
+    Splits data into train and test
+    Runs 10 fold CV to get best alpha on training set
+    Get best model, best coefficients, best score
+    Returns dictionary with alpha, score, and coefficients per electrode
+
+    runs on 10 test/training sets and takes median predictions score (for stability). not enough for pvalue
+    so no confidence interval on prediction score or pvalue for prediction score
+    """
+    
+    coefs_mean, score_median, alpha_median = [dict() for i in range(3)]
+
+    elecs = data_dict.keys()
+    colnames = list(data_dict[elecs[0]].columns)
+    predictor = colnames.pop(colnames.index('RTs'))
+    features = colnames
+   
+    for elec in elecs:
+        #if elec != 52: #HARDCODED
+        #    continue
+
+        #define data (NaNs already dropped)
+        X = np.array(data_dict[elec][features])
+        Y = np.array(data_dict[elec][predictor])
+
+        #split data into training and test sets for the number of CV folds
+        cvs = cross_validation.ShuffleSplit(len(Y), n_iter = 10, test_size = 0.2) #only 10 models
+
+        alphas, models, scores, coefs, scores_null = [[] for i in range(5)]
+        
+        for train, test in cvs:
+            #scale training and test data
+            X_train = scale(X[train].astype(float))
+            X_test = scale(X[test].astype(float))
+            y_train = scale(Y[train].astype(float))
+            y_test = scale(Y[test].astype(float))
+
+            #define model (search over 10 alphas)
+            model = Ridge(solver = 'lsqr', normalize=False, fit_intercept=False)
+            params_grid = {'alpha': np.logspace(-4, 4, 10)}
+            ridge_grid = grid_search.GridSearchCV(model, params_grid, cv = 10)
+
+            #fit and find best model
+            ridge_grid.fit(X_train, y_train)
+            mod = ridge_grid.best_estimator_
+            score = np.corrcoef(mod.predict(X_test), y_test)[1,0]
+            coef = mod.coef_
+            a = mod.alpha
+
+            #add to list
+            alphas.append(a)
+            models.append(mod)
+            scores.append(score)
+            coefs.append(coef)
+        
+        coefs_mean[elec] = np.mean(coefs, axis = 0)
+        alpha_median[elec] = np.median(alphas)
+        score_median[elec] = np.median(scores)
+        
+        print (elec, np.median(scores))
+        sys.stdout.flush()
+
+    return coefs_mean, score_median, alpha_median
+
+
+def reject_outliers(DATASET, data_dict, srate, df_pattern, bad_df = None, std_thresh = 4, features = ['maxes_rel','medians', 'stds'], predictor = 'RTs'):
+    """
+    based on code in elec_values.ipynb - except doesn't save out all the iterations
+    drops specific bad elecs, rejects at 4 stds, drops windows < 200ms
+    returns dictionary with clean dataframe per electrode
+    outliers done for regression - each electrode can have different number of trials, 
+    but if trial is bad for 1 feature, gets dropped from all features for that electrode
+    """
+
+    subj, task = DATASET.split('_')
+
+    df_dict, data_dict_clean, data_dict_no200 = [dict() for i in range(3)]
+
+    min_window = round(200/1000*srate)
+    bl_st = -500/1000*srate #for all subj/tasks (since cue already accounted for in start/end_idx)
+    
+    features_plus_predictor = features + [predictor]
+
+    #add RTs to data frame with dropped trials
+    df_RT = pd.DataFrame(data_dict['RTs'])
+    df_RT.columns = [int(x) for x in df_RT.columns]
+    df_dict['RTs'] = df_RT
+
+    #reject outliers (bad elecs, 4 stds and windows <200ms)
+    for f in features: #doesn't include RT
+        df = pd.DataFrame(data_dict[f])
+
+        #drop specific bad elecs elecs
+        if DATASET in bad_df.subj_task.values:
+            elec_to_drop = bad_df[bad_df.subj_task == '_'.join([subj, task])].elec
+            df.pop(elec_to_drop.values[0])
+
+        #drop NA trials
+        #df = df.dropna() causes bug that feautres and RTs have diff num of trials
+
+        #drop 4 stds
+        trials_to_drop = df.apply(lambda x: ((x > (x.mean() + x.std(ddof = 1)*std_thresh)) | (x < (x.mean() - x.std(ddof = 1)* std_thresh))))
+        masked_values = np.where(~trials_to_drop, df.values, np.nan) #good trials     
+        tmp = pd.DataFrame(masked_values, **df._construct_axes_dict()) #new dataframe with dropped trials for 1 feat
+        tmp.columns = [int(x) for x in tmp.columns]
+        df_dict[f] = tmp
+    
+    #drop nans for all features for an electrode (based on 4std outlier rejection)   
+    for elec in df_dict[f].columns:
+
+        data_array = np.array([df_dict[x][elec] for x in features_plus_predictor]) #features x trials
+
+        trials_to_drop = np.any(np.isnan(data_array), axis = 0)
+
+        data_array = data_array[:,~trials_to_drop]
+
+        data_dict_clean[elec] = pd.DataFrame(data_array.T, columns = features_plus_predictor)
+
+        #drop windows <200ms
+        row = df_pattern[((df_pattern.subj == subj) & (df_pattern.task == task) & (df_pattern.elec == elec))]
+        _, _, _, _, pattern, _, start_idx, end_idx, start_idx_resp, end_idx_resp, _, _ = row.values[0]
+        
+        if ((pattern == 'S') | (pattern == 'SR') | (pattern == 'sustained') | (pattern == 'S+sustained')) & ((end_idx - start_idx) > min_window): #keep elec
+            data_dict_no200[elec] = data_dict_clean[elec]
+
+        if (pattern == 'R') & ((end_idx_resp - start_idx_resp) > min_window): #keep elec
+            data_dict_no200[elec] = data_dict_clean[elec]
+
+        if (pattern == 'D'):
+
+            trial_lengths = []
+
+            start_idx = start_idx + abs(bl_st)
+            RTs = data_dict_clean[elec]['RTs']
+
+            for i, r in enumerate(RTs):
+                trial_lengths.append(int(r+end_idx_resp-start_idx)) #length of each short trial so can use for long trial indexing
+            trials_to_drop = np.array(trial_lengths) < min_window
+        
+            if any(trials_to_drop):
+                data_dict_no200[elec] = data_dict_clean[elec][~trials_to_drop] #drop trials
+            else:
+                data_dict_no200[elec] = data_dict_clean[elec]
+
+    return data_dict_no200 #dictionary with dataframe per electrode
+
+
+def shadeplots_elecs_stats_surr_random(subj, task, df_pattern, id_num = 99):
+
+    """ 
+    calculates params per electrode on surrogate data. Surrogate data is HG windows timepoints randomly shuffled.
+
+    uses windows for individual electrodes from df_pattern (PCA/Stats/single_electrode_windows_csvs/single_electrode_windows_withdesignation_EDITED.csv)
+    
+    Uses unsmoothed data
+
+    hardcoded - medians and maxes_rel and stds
+
+    returns dictionary with features. each feature is dictionary of elecs
+    """
+
+    SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/'
+
+    #load data
+    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_unsmoothed.mat')
+    data_dict = loadmat.loadmat(filename)
+
+    active_elecs, Params, srate, RT, data_all = [data_dict.get(k) for k in ['active_elecs','Params','srate','RTs','data_percent']]
+
+    bl_st = 500/1000*srate #for my data, remove cue from baseline - start/end_idx are relative to cue onset) - change 12/24 - okay with RT 12/25
+
+    RT = RT + abs(bl_st) #RTs are calculated from stim (my data cue) onset, need to account for bl in HG_elecMTX_percent (for 500, not 1000 baseline 12/25)
+
+    RTs, medians, maxes_rel, means, stds, maxes = [dict() for i in range(6)]
+    
+    s_t = df_pattern[((df_pattern.subj == subj) & (df_pattern.task == task))]
+    for e in s_t.elec.values:
+
+        _, subj, task, cluster, pattern, elec, start_idx, end_idx, start_idx_resp, end_idx_resp, _, _ = s_t[s_t.elec == e].values[0]
+        
+        #if elec != 52: #HARDCODED
+        #    continue
+        
+        if pattern != 'D': #only run on duration electrodes
+            continue
+
+
+        print('%i...' %(elec), end = "")
+        sys.stdout.flush()
+
+        eidx = np.in1d(active_elecs, elec)
+        data = data_all[eidx,:,:].squeeze()
+
+        #define start and end indices based on electrode type
+        if any([(pattern == 'S'), (pattern == 'sustained'), (pattern == 'S+sustained'), (pattern == 'SR')]):
+            start_idx = start_idx + abs(bl_st)
+            end_idx = end_idx + abs(bl_st)
+            if start_idx == end_idx:
+                continue #for SR elecs that dont' have stimlocked (CP9, e91)
+
+             #make surrogate dataset based on activity window
+            data_surr = data[:, start_idx:end_idx].flatten() #take HG windows
+            randidx = np.random.permutation(len(data_surr))
+            data_surr = data_surr.flatten()
+            data_surr = data_surr[randidx] #shuffle
+            data_surr = data_surr.reshape((data.shape[0], -1)) #reshape data into matrix                
+
+            #calculate stats (single trials)
+            means[elec] = data_surr.mean(axis = 1)
+            stds[elec] = data_surr.std(axis = 1)
+            maxes[elec] = data_surr.max(axis = 1)
+            RTs[elec] = RT
+
+            medians[elec] = stats.nanmedian(data_surr, axis = 1)
+            maxes_rel[elec] = maxes[elec]-means[elec]
+
+        if pattern == 'R':
+            start_idx_resp = start_idx_resp
+            end_idx_resp = end_idx_resp
+
+            if start_idx_resp == end_idx_resp:
+                continue  #for inactive R elecs (not clear why on spreadsheet)
+
+            #create data matrix
+            data_resp = np.empty(data.shape)
+            for j, r in enumerate(RT):
+                tmp = data[j, r + start_idx_resp : r + end_idx_resp]
+                tmp = np.pad(tmp, (0, data.shape[1]-len(tmp)), 'constant', constant_values = -999)
+                data_resp[j,:] = tmp
+            data_resp[data_resp == -999] = np.nan
+
+            nanidx = np.isnan(np.nanmean(data_resp, axis = 1)) #if start > end for a trial (short RTs)
+            if np.any(nanidx):
+
+                #drop equivalent number of long RTs
+                num_to_drop = np.sum(nanidx)
+                i = np.argpartition(RT, -num_to_drop)[-num_to_drop :] #find the indices of the longest RTs
+                nanidx[i] = True #mark the long trials as bad too
+                data_resp[nanidx,:] = np.nan
+
+                #drop nan from RTs
+                tmp_RT = np.ndarray.astype(RT, dtype = float)
+                tmp_RT[nanidx] = np.nan
+                RTs[elec] = tmp_RT
+
+                #make surrogate data
+                data_surr = data_resp.flatten() #take HG window
+                data_surr_drop = np.isnan(data_surr) #for dropping trials from data_idx
+                data_surr = data_surr[~np.isnan(data_surr)] #remove nan (also drops trials that are completely nan)
+                randidx = np.random.permutation(len(data_surr)) #shuffle
+                data_surr = data_surr[randidx]
+                data_surr = data_surr.reshape((data_resp.shape[0],-1)) #reshape trials x time (no nan buffer)
+                data_surr = np.insert(data_surr, nanidx, np.empty((1, data_surr.shape[1])) * np.nan, axis = 0) #insert nan rows (numtrials of _surr == _resp)
+
+            else: 
+                #make surrogate data
+                data_surr = data_resp.flatten() #take HG window
+                data_surr_drop = np.isnan(data_surr) #for dropping trials from data_idx
+                data_surr = data_surr[~np.isnan(data_surr)] #remove nan 
+
+                randidx = np.random.permutation(len(data_surr)) #shuffle
+                data_surr = data_surr[randidx]
+                data_surr = data_surr.reshape((data_resp.shape[0],-1)) #reshape                    
+
+                RTs[elec] = RT
+
+            #reshape data_surr with nan buffer at end
+            data_resp_surr = np.empty_like(data_resp)
+            for j in range(data_surr.shape[0]):
+                tmp = data_surr[j,:]
+                tmp = np.pad(tmp, (0, data_resp.shape[1]-len(tmp)), 'constant', constant_values = -999)
+                data_resp_surr[j,:] = tmp
+            data_resp_surr[data_resp_surr == -999] = np.nan
+
+            #calculate params for (single trials)
+            means[elec] = np.nanmean(data_resp_surr, axis = 1)
+            stds[elec] = np.nanstd(data_resp_surr, axis = 1)
+            maxes[elec] = np.nanmax(data_resp_surr, axis = 1)
+
+            medians[elec] = stats.nanmedian(data_resp_surr, axis = 1)
+            maxes_rel[elec] = maxes[elec]-means[elec]
+
+        if pattern == 'D':
+            start_idx = start_idx + abs(bl_st)
+            end_idx_resp = end_idx_resp
+
+            #create data matrices
+            data_dur = np.empty(data.shape)
+            for j, r in enumerate(RT):
+                tmp = data[j, start_idx : r + end_idx_resp]
+                tmp = np.pad(tmp, (0, data.shape[1]-len(tmp)), 'constant', constant_values = -999)
+                data_dur[j,:] = tmp
+            data_dur[data_dur == -999] = np.nan
+
+            nanidx = np.isnan(np.nanmean(data_dur, axis = 1)) #if start > end
+            if np.any(nanidx):
+                #drop equivalent number of long RTs
+                num_to_drop = np.sum(nanidx)
+                i = np.argpartition(RT, -num_to_drop)[-num_to_drop :] #find the indices of the longest RTs
+                nanidx[i] = True #mark the long trials as bad too
+                data_dur[nanidx, :] = np.nan
+
+                #drop nan from RTs
+                tmp_RT = np.ndarray.astype(RT, dtype = float)
+                tmp_RT[nanidx] = np.nan
+                RTs[elec] = tmp_RT
+            else:
+                RTs[elec] = RT     
+
+            #make surrogate data
+            data_surr = data_dur.flatten() #take HG window
+            data_surr_drop = np.isnan(data_surr) #for data_idx dropping points based on data_surr
+            data_surr = data_surr[~np.isnan(data_surr)] #drop nan datapoints (pull out only HG)
+            randidx = np.random.permutation(len(data_surr)) #shuffle
+            data_surr = data_surr[randidx]
+
+            #reshape data_surr with nan
+            data_dur_surr = np.empty_like(data_dur)
+            start = 0
+            for j in range(data_dur.shape[0]):
+                trial_length = sum(~np.isnan(data_dur[j,:]))
+                if j>0:
+                    start = end
+                end = start + trial_length
+                if trial_length>0: #not a nan trial
+                    tmp = data_surr[start:end]
+                    tmp = np.pad(tmp, (0, data_dur.shape[1]-len(tmp)), 'constant', constant_values = -999)
+                    data_dur_surr[j,:] = tmp
+                else: #nan trial
+                    data_dur_surr[j,:] = -999
+            data_dur_surr[data_dur_surr == -999] = np.nan
+
+            #calculate params for single trials
+            means[elec] = np.nanmean(data_dur_surr, axis = 1)
+            stds[elec] = np.nanstd(data_dur_surr, axis = 1)
+            maxes[elec] = np.nanmax(data_dur_surr, axis = 1)
+
+            medians[elec] = stats.nanmedian(data_dur_surr, axis = 1)
+            maxes_rel[elec] = maxes[elec] - means[elec]
+
+    #output dictionary of params per elec
+    data_dict = {'RTs':RTs, 'maxes_rel' : maxes_rel, 'medians' : medians, 'stds': stds}
+    return data_dict
+
+
+if __name__ == '__main__':
+    DATASET = sys.argv[1]
+    HG_regression_surr_random_SGE(DATASET)
