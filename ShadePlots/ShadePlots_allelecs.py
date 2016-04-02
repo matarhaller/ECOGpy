@@ -13,13 +13,14 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
     """ 
     calculate onset and offset window for every active electrode (ignoring clusters)
     saves csv for each sub/task for easy plotting later
+    includes real vs empty - 2 conditions difference
 
-    EDITED FOR EMPTY TRIALS 2-2-15
     """
 
     subj, task = DATASET.split('_')
 
-    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_empty.mat')
+    #filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent_empty.mat')
+    filename = os.path.join(SJdir, 'Subjs', subj, task, 'HG_elecMTX_percent.mat')    
     data = loadmat.loadmat(filename)
     srate = data['srate']
     active_elecs = data['active_elecs']
@@ -37,7 +38,8 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
     else:
         st_tp = 0
 
-    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '_empty.csv']))
+    #filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '_empty.csv']))
+    filename = os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', ''.join([subj, '_', task, '.csv']))
     subjs = list(); tasks = list(); pthr = list(); elecs = list(); starts = list(); ends = list(); 
 
     for i, e in enumerate(active_elecs):
@@ -126,7 +128,9 @@ def shadeplots_allelecs(DATASET, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta
         ends.extend(end_idx)
 
         data_dict = {'edata':edata, 'bl_st':bl_st, 'start_idx':start_idx, 'end_idx':end_idx, 'srate':srate,'thresh':thresh, 'chunksize':chunksize, 'black_chunksize':black_chunksize}
-        data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '_empty.p']))
+        #data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '_empty.p'])
+        data_path = os.path.join(SJdir, 'PCA','ShadePlots_allelecs', 'data',''.join([subj, '_', task, '_e', str(e), '.p']))
+
         with open(data_path, 'w') as f:
             pickle.dump(data_dict, f)
             f.close()

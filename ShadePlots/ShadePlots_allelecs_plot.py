@@ -11,7 +11,7 @@ import numpy as np
 
 def shadeplots_allelecs_plot(SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/', subj_task = ''):
     '''
-    edited for empty 2/2/15
+    edited for empty 2/2/15 - removed
     '''
     
     reconlist = os.path.join(SJdir, 'PCA', 'reconlist.csv')
@@ -31,11 +31,13 @@ def plot_shadeplot(subj, task, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta')
         """
         plot shade plots with activity window in red (from ShadePlots_allelecs.py)
         """
-        files = glob.glob(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', 'data', ''.join([subj, '_', task, '*empty.p'])))
+        #files = glob.glob(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', 'data', ''.join([subj, '_', task, '*empty.p'])))
+        files = glob.glob(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs', 'data', ''.join([subj, '_', task, '*.p'])))
 
         for f in files:
             print f
-            elecname = f.split('_')[-2].split('.p')[0] #before empty was -1
+            #elecname = f.split('_')[-2].split('.p')[0] #before empty was -1
+            elecname = f.split('_')[-1].split('.p')[0] 
 
             with open(f, 'r') as x:
                 data_dict = pickle.load(x)
@@ -71,8 +73,10 @@ def plot_shadeplot(subj, task, SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta')
                     ax.plot(tmp, np.zeros(tmp.size), color = 'r', linewidth = 3.5, label = (start, finish))
                     ax.legend()
 
-            ax.set_title(' '.join(['empty trials', subj, task, ':', elecname, 'chunksize', str(chunksize), 'smoothing', str(black_chunksize),'thresh', str(thresh)]))
-            plt.savefig(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs','images', ''.join([subj, '_', task, '_', elecname, '_empty'])))
+            #ax.set_title(' '.join(['empty trials', subj, task, ':', elecname, 'chunksize', str(chunksize), 'smoothing', str(black_chunksize),'thresh', str(thresh)]))
+            ax.set_title(' '.join([subj, task, ':', elecname, 'chunksize', str(chunksize), 'smoothing', str(black_chunksize),'thresh', str(thresh)]))
+            #plt.savefig(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs','images', ''.join([subj, '_', task, '_', elecname, '_empty'])))
+            plt.savefig(os.path.join(SJdir, 'PCA', 'ShadePlots_allelecs','images', ''.join([subj, '_', task, '_', elecname,])))
             plt.close()
         
 
