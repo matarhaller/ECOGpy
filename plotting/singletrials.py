@@ -28,7 +28,6 @@ def plot_singletrials(subj, task, elec_list, fig = None, ax = None, smooth = Tru
     srate, alldata, active_elecs, RTs = get_HGdata(subj, task, var_list)
 
     #get data for elecs of choice
-    # data = alldata[active_elecs == elec,:,:].squeeze()
     idx = np.in1d(active_elecs, elec_list) #indices of these elecs in the HG dataframe
     data = np.vstack(alldata[idx,:,:]) #trials x time for all elecs in cluster
     RTs = np.tile(RTs, len(elec_list))

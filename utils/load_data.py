@@ -2,7 +2,6 @@ from __future__ import division
 import scipy.io as spio
 import numpy as np
 import os
-from utils.loadmat import loadmat
 
 def get_HGdata(subj, task, var_list, type = 'zscore', base = '/home/knight/matar/MATLAB/DATA/Avgusta/'):
     """
@@ -29,3 +28,38 @@ def get_HGdata(subj, task, var_list, type = 'zscore', base = '/home/knight/matar
     data_dict = loadmat(filename) #load the data dictionary
     variables = [data_dict[k] for k in var_list]
     return variables
+
+
+def loadmat(filename):
+    """
+    this function should be called instead of direct spio.loadmat
+    as it cures the problem of not properly recovering python dictionaries
+    from mat files. It calls the function check keys to cure all entries
+    which are still mat-objects
+    see: http://stackoverflow.com/questions/7008608/scipy-io-loadmat-nested-structures-i-e-dictionaries
+    """
+    data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
+    return _check_keys(data)
+
+def _check_keys(dict):
+    """
+    checks if entries in dictionary are mat-objects. If yes
+    todict is called to change them to nested dictionaries
+    """
+    for key in dict:
+        if isinstance(dict[key], spio.matlab.mio5_params.mat_struct):
+            dict[key] = _todict(dict[key])
+    return dict        
+
+def _todict(matobj):
+    """
+    A recursive function which constructs from matobjects nested dictionaries
+    """
+    dict = {}
+    for strg in matobj._fieldnames:
+        elem = matobj.__dict__[strg]
+        if isinstance(elem, spio.matlab.mio5_params.mat_struct):
+            dict[strg] = _todict(elem)
+        else:
+            dict[strg] = elem
+    return dict
