@@ -7,6 +7,8 @@ from mne.preprocessing import peak_finder
 from mne.utils import ProgressBar
 from mne.baseline import rescale
 
+from connectivity import  _pre_filter_ph_am, _array_raw_to_epochs
+
 # Supported PAC functions
 _pac_funcs = ['plv', 'glm', 'mi_tort', 'mi_canolty', 'ozkurt', 'otc']
 # Calculate the phase of the amplitude signal for these PAC funcs
@@ -89,8 +91,10 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
     func = getattr(ppac, pac_func)
     ixs = np.array(ixs, ndmin=2)
     f_phase = np.atleast_2d(f_phase)
+    #print f_phase
     f_amp = np.atleast_2d(f_amp)
-
+    #print f_amp
+    #print (f_phase.shape, f_phase[0], f_amp.shape, f_amp[0])
     if to_filter:
         if data.ndim != 2:
             raise ValueError('Data must be shape (n_channels, n_times)')
@@ -109,9 +113,9 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
         ph, am = data
         data_ph, ix_map_ph = ph
         data_am, ix_map_am = am
-
+    #print(data_ph[0], data_am[0]) #diverge!
     ixs_new = [(ix_map_ph[i], ix_map_am[j]) for i, j in ixs]
-
+    # print ixs_new[0]
 
     if ev is not None:
         use_times = [tmin, tmax] if use_times is None else use_times
@@ -120,7 +124,7 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
             data_ph, sfreq, ev, tmin, tmax)
         data_am, times, msk_ev = _array_raw_to_epochs(
             data_am, sfreq, ev, tmin, tmax)
-
+        # print (data_am.shape, data_am[0])
         # In case we cut off any events
         ev, ev_grouping = [i[msk_ev] for i in [ev, ev_grouping]]
 
@@ -128,7 +132,7 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
         rescale(data_am, times, baseline, baseline_kind, copy=False)
         msk_time = _time_mask(times, *use_times)
         data_am, data_ph = [i[..., msk_time] for i in [data_am, data_ph]]
-
+        # print (data_am.shape, data_am[0])
         # Stack epochs to a single trace if specified
         if concat_epochs is True:
             ev_unique = np.unique(ev_grouping)
@@ -143,7 +147,7 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
         data_am = np.array([data_am])
     data_ph = list(data_ph)
     data_am = list(data_am)
-
+    # print(len(data_am), len(data_ph))
     if scale_amp_func is not None:
         for i in range(len(data_am)):
             data_am[i] = scale_amp_func(data_am[i], axis=-1)
