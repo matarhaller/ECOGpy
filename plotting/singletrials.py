@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as ndimage
 
-def plot_singletrials(subj, task, elec_list, fig = None, ax = None, smooth = True, cm = plt.get_cmap('RdGy_r'), cbar = True, **kwargs):
+def plot_singletrials(subj, task, elec_list, fig = None, ax = None, smooth = True, cm = plt.get_cmap('RdGy_r'), cbar = True, vmin = -3, vmax = 3, **kwargs):
     """
     plot single trial plot
     input:
@@ -44,7 +44,7 @@ def plot_singletrials(subj, task, elec_list, fig = None, ax = None, smooth = Tru
         img = data
     
     cax = ax.imshow(img, aspect = 'auto', origin = 'lower', extent = (-500/1000*srate, img.shape[1]-500/1000*srate, 0, len(RTs)), cmap = cm)
-    cax.set_clim(vmin=-3,vmax=3)
+    cax.set_clim(vmin=vmin,vmax=vmax)
 
     #reaction times
     for j in np.arange(len(RTs)):
@@ -53,7 +53,7 @@ def plot_singletrials(subj, task, elec_list, fig = None, ax = None, smooth = Tru
     #colorbar
     if cbar:
         cbar = fig.colorbar(cax, ticks = [-3, 0 , 3], orientation = 'vertical', label = 'zscore')
-        cbar.set_label(label='zscore',size=14,weight='bold')
+        cbar.set_label(label='zscore',size=14, fontsize = 14)
 
     #format
     ax.autoscale(enable = True, tight = True)
@@ -64,11 +64,50 @@ def plot_singletrials(subj, task, elec_list, fig = None, ax = None, smooth = Tru
     ax.spines['bottom'].set_visible(True)
     ax.get_xaxis().tick_bottom()
     ax.get_yaxis().tick_left()
-    ax.xaxis.set_tick_params(labelsize = 14, width = 3)
+    ax.xaxis.set_tick_params(labelsize = 14, width = 0)
     ax.yaxis.set_tick_params(labelsize = 14, width = 0)
     ax.axvline(x = 0, lw = 3, color = 'black')
-    ax.set_xlabel('Time (ms)', fontsize = 20, weight = 'bold')
-    ax.set_ylabel('Trials', fontsize = 20, weight = 'bold')
-    ax.set_title('{0} {1} e{2}'.format(subj, task, elec_list), fontsize = 20, weight = 'bold')
+    ax.set_xlabel('Time (ms)', fontsize = 14)
+    ax.set_ylabel('Trials', fontsize = 14)
+    ax.set_xticks(np.arange(0, 3000, 1000))
+    #ax.set_title('{0} {1} e{2}'.format(subj, task, elec_list), fontsize = 20, weight = 'bold')
         
     return ax
+
+
+def plot_singletrials_cluster(subj, task, cluster):
+
+    SJdir = '/home/knight/matar/MATLAB/DATA/Avgusta/'
+    datadir = os.path.join(SJdir, 'Subjs')
+    
+    filename = os.path.join(SJdir, 'PCA', 'SingleTrials_hclust', ''.join([subj, '_', task, '_c', str(cluster)]))
+
+    data_dict = loadmat.loadmat(filename)
+    cdata, srate, RTs_all = [data_dict.get(k) for k in ['cdata', 'srate', 'RTs_all']]
+
+    bl_st = np.round(-500/1000*srate) #doesn't work for my data
+    RTs_all = RTs_all
+
+    #cut data
+    off = 4000/1000*srate
+    cdata = cdata[:, 0:off]
+    
+    idx = RTs_all<cdata.shape[1]+bl_st
+    RTs_all = RTs_all[idx]
+
+    cdata = cdata[idx,:]
+
+    #plot
+    f,ax = plt.subplots()
+    ax.set_title(' '.join([subj, task, str(cluster)]))
+    ax.autoscale(enable = True, tight = True)
+    cax = ax.pcolormesh(np.arange(bl_st, cdata.shape[1]+bl_st), np.arange(0, len(RTs_all)), cdata, zorder = 0)
+    cbar = f.colorbar(cax, ticks = [-150, 0 , 150], orientation = 'vertical')
+    cax.set_clim(vmin=-150,vmax=150)
+
+    for j in np.arange(len(RTs_all)):
+        ax.plot((RTs_all[j], RTs_all[j]), (j-0.5, j+0.5), 'k', linewidth = 3,zorder = 1)
+
+    filename = os.path.join(SJdir,'PCA','figs_for_Bob', ''.join([subj, '_', task, '_c', str(cluster), '300.png']))
+    plt.savefig(filename, format = 'png', dpi = 300)
+   

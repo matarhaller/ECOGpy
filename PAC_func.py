@@ -20,7 +20,7 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
                               baseline=None, baseline_kind='mean',
                               scale_amp_func=None, use_times=None, npad='auto',
                               return_data=False, concat_epochs=True, n_jobs=1,
-                              verbose=None, to_filter = False):
+                              verbose=None, to_filter = False, ev2 = None):
     """ Compute phase-amplitude coupling using pacpy.
     Parameters
     ----------
@@ -79,6 +79,8 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
         If not None, override default verbose level (see mne.verbose).
     to_filter : False
         If True, function expects pre-filtered data (argument is a list of (data, idx) tuples from _pre_filter_ph_am)
+    ev2 : None
+        If exists, then it's the random onsets to use for amplitude data
     Returns
     -------
     pac_out : array, dtype float, shape (n_pairs, [n_events])
@@ -117,22 +119,28 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
     ixs_new = [(ix_map_ph[i], ix_map_am[j]) for i, j in ixs]
     # print ixs_new[0]
 
-    if ev is not None:
+    if ev is not None: 
         use_times = [tmin, tmax] if use_times is None else use_times
         ev_grouping = np.ones_like(ev) if ev_grouping is None else ev_grouping
         data_ph, times, msk_ev = _array_raw_to_epochs(
             data_ph, sfreq, ev, tmin, tmax)
-        data_am, times, msk_ev = _array_raw_to_epochs(
-            data_am, sfreq, ev, tmin, tmax)
-        # print (data_am.shape, data_am[0])
-        # In case we cut off any events
         ev, ev_grouping = [i[msk_ev] for i in [ev, ev_grouping]]
+        if ev2 is not None:
+            print 'random onsets'
+            data_am, times2, msk_ev = _array_raw_to_epochs(
+                data_am, sfreq, ev2, tmin, tmax) #EDIT FOR RANDOM ONSETS OF AMPLITUDE
+            # In case we cut off any events
+            ev2, ev_grouping = [i[msk_ev] for i in [ev2, ev_grouping]]
+        else:
+            data_am, times, msk_ev = _array_raw_to_epochs(
+                data_am, sfreq, ev, tmin, tmax)
+            # In case we cut off any events
+            ev, ev_grouping = [i[msk_ev] for i in [ev, ev_grouping]]
 
         # Baselining before returning
         rescale(data_am, times, baseline, baseline_kind, copy=False)
         msk_time = _time_mask(times, *use_times)
         data_am, data_ph = [i[..., msk_time] for i in [data_am, data_ph]]
-        # print (data_am.shape, data_am[0])
         # Stack epochs to a single trace if specified
         if concat_epochs is True:
             ev_unique = np.unique(ev_grouping)
@@ -147,7 +155,6 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
         data_am = np.array([data_am])
     data_ph = list(data_ph)
     data_am = list(data_am)
-    # print(len(data_am), len(data_ph))
     if scale_amp_func is not None:
         for i in range(len(data_am)):
             data_am[i] = scale_amp_func(data_am[i], axis=-1)
@@ -155,6 +162,7 @@ def _phase_amplitude_coupling_edited(data, sfreq, f_phase, f_amp, ixs,
     n_ep = len(data_ph)
     pac = np.zeros([n_ep, len(ixs_new)])
     pbar = ProgressBar(n_ep)
+    print(len(data_ph), len(data_am))
     for iep, (ep_ph, ep_am) in enumerate(zip(data_ph, data_am)):
         for iix, (i_ix_ph, i_ix_am) in enumerate(ixs_new):
             # f_phase and f_amp won't be used in this case
